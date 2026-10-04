@@ -72,7 +72,7 @@ test('right-clicking selected text keeps the editor selection active', async ({ 
 
   await editor.click({ button: 'right', position: { x: 40, y: 18 } });
 
-  await expect(page.locator('.document-menu-context')).toBeVisible();
+  await expect(page.locator('.document-menu-context')).toHaveCount(0);
   await expect.poll(() => editor.evaluate(element => ({
     start: element.selectionStart,
     end: element.selectionEnd,

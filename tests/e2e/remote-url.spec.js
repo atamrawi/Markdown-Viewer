@@ -67,4 +67,30 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(page.locator('#tab-bar')).toBeHidden();
     await expect(page.locator('#standalone-theme-toggle')).toBeVisible();
   });
+
+  test('resolves relative image paths and links against the remote repository base URL', async ({ page }) => {
+    await page.route('https://raw.githubusercontent.com/org/repo/main/docs/guides/intro.md', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/markdown; charset=utf-8',
+        body: '# Guide with relative assets\n\n![Screenshot](../../assets/images/3.png)\n\n[Related Docs](../architecture.md)'
+      });
+    });
+
+    await page.goto('/?url=https://github.com/org/repo/blob/main/docs/guides/intro.md');
+
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+
+    const preview = page.locator('#markdown-preview');
+    await expect(preview.locator('h1')).toHaveText('Guide with relative assets');
+
+    // Verify image src was rewritten from ../../assets/images/3.png to https://raw.githubusercontent.com/org/repo/main/assets/images/3.png
+    const img = preview.locator('.preview-image-container img');
+    await expect(img).toHaveAttribute('src', 'https://raw.githubusercontent.com/org/repo/main/assets/images/3.png');
+
+    // Verify relative link href was rewritten
+    const link = preview.locator('a:has-text("Related Docs")');
+    await expect(link).toHaveAttribute('href', 'https://raw.githubusercontent.com/org/repo/main/docs/architecture.md');
+  });
 });
+

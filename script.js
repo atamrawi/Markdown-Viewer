@@ -3333,10 +3333,34 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
+  function getActiveDocumentBaseUrl() {
+    const activeTab = tabs && tabs.find ? tabs.find(t => t.id === activeTabId) : null;
+    if (activeTab && activeTab.baseUrl) return activeTab.baseUrl;
+    if (activeTab && activeTab.sourceUrl) {
+      try {
+        const info = resolveMarkdownUrlInfo(activeTab.sourceUrl);
+        if (info && info.baseUrl) return info.baseUrl;
+      } catch (_) {}
+    }
+    return '';
+  }
+
   function enhancePreviewImages(container) {
     if (!container) return;
+    const docBaseUrl = getActiveDocumentBaseUrl();
     const images = container.querySelectorAll("img");
     images.forEach(img => {
+      // Resolve relative images against remote document base URL if present
+      if (docBaseUrl) {
+        const rawSrc = img.getAttribute("src") || "";
+        if (rawSrc && !/^(?:[a-z]+:|\/\/|data:|blob:|#)/i.test(rawSrc.trim())) {
+          try {
+            const resolvedSrc = new URL(rawSrc.trim(), docBaseUrl).href;
+            img.src = resolvedSrc;
+          } catch (_) {}
+        }
+      }
+
       // Skip if inside emoji, icon, diagram, logo, modal, or already wrapped
       if (
         img.classList.contains("joypixel") ||
@@ -3413,6 +3437,24 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
 
       wrapper.appendChild(toolbar);
+    });
+  }
+
+  function enhanceRelativeLinks(container) {
+    if (!container) return;
+    const docBaseUrl = getActiveDocumentBaseUrl();
+    if (!docBaseUrl) return;
+    const links = container.querySelectorAll("a[href]");
+    links.forEach(a => {
+      const rawHref = a.getAttribute("href") || "";
+      if (rawHref && !/^(?:[a-z]+:|\/\/|data:|blob:|#|mailto:|tel:)/i.test(rawHref.trim())) {
+        try {
+          const resolvedHref = new URL(rawHref.trim(), docBaseUrl).href;
+          a.setAttribute("href", resolvedHref);
+          a.setAttribute("target", "_blank");
+          a.setAttribute("rel", "noopener noreferrer");
+        } catch (_) {}
+      }
     });
   }
 
@@ -6169,198 +6211,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     return actions;
   }
 
-  function openDocumentTreeContextMenu(row, event) {
-    if (!row) return;
-    if (event) event.preventDefault();
-    if (isDocumentTreeRowSelectable(row)) {
-      selectDocumentTreeRow(row, event, { preserveExisting: true, contextMenu: true });
-    } else {
-      clearDocumentTreeSelection({ announce: false });
-    }
-    const actions = selectedDocumentTreeIds.size > 1
-      ? getBulkDocumentTreeMenuActions()
-      : getDocumentTreeMenuActionsForRow(row);
-    if (!actions.length) return;
-    const virtualButton = createDocumentMenuButton('Explorer item', actions);
-    const menu = virtualButton._documentMenu;
-    const rect = row.getBoundingClientRect();
-    const position = event && Number.isFinite(event.clientX) && (event.clientX || event.clientY)
-      ? { x: event.clientX, y: event.clientY }
-      : { x: Math.min(rect.right, window.innerWidth - 8), y: Math.min(rect.bottom, window.innerHeight - 8) };
-    openDocumentMenu(virtualButton, menu, position, row);
-  }
 
-  function openDocumentTreeBackgroundContextMenu(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    clearDocumentTreeSelection({ announce: false });
-    const location = getPreferredDocumentLocation();
-    const actions = [
-      {
-        id: 'new-document',
-        icon: 'lucide-file-text',
-        label: 'New file',
-        run: function() { newTab('', null, location); }
-      },
-      {
-        id: 'new-folder',
-        icon: 'lucide-folder-plus',
-        label: 'New folder',
-        run: function() { createFolder(location.workspaceId); }
-      }
-    ];
-    const tree = document.getElementById('document-tree');
-    const virtualButton = createDocumentMenuButton('Explorer', actions);
-    const rect = tree ? tree.getBoundingClientRect() : { left: 8, top: 8, right: 220, bottom: 120 };
-    const position = event && Number.isFinite(event.clientX) && (event.clientX || event.clientY)
-      ? { x: event.clientX, y: event.clientY }
-      : { x: Math.min(rect.left + 24, window.innerWidth - 8), y: Math.min(rect.top + 24, window.innerHeight - 8) };
-    openDocumentMenu(virtualButton, virtualButton._documentMenu, position, tree);
-  }
-
-  function getContextMenuPosition(event, fallbackElement) {
-    if (event && Number.isFinite(event.clientX) && (event.clientX || event.clientY)) {
-      return { x: event.clientX, y: event.clientY };
-    }
-    const rect = fallbackElement && typeof fallbackElement.getBoundingClientRect === 'function'
-      ? fallbackElement.getBoundingClientRect()
-      : { left: 8, top: 8 };
-    return {
-      x: Math.min(rect.left + 24, window.innerWidth - 8),
-      y: Math.min(rect.top + 24, window.innerHeight - 8)
-    };
-  }
-
-  function openQuickStartContextMenu(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    const actions = [
-      { id: 'open-explorer', icon: 'lucide-panel-left-open', label: 'Open Explorer', run: function() { noOpenDocumentExplorer.click(); } },
-      { id: 'new-document', icon: 'lucide-file-plus-2', label: 'New document', run: function() { noOpenDocumentNew.click(); } },
-      { id: 'open-device', icon: 'lucide-upload', label: 'Open from device', run: function() { noOpenDocumentOpenFile.click(); } },
-      { id: 'import-github', icon: 'bi bi-github', label: 'Import from GitHub', run: function() { noOpenDocumentGithub.click(); } },
-      { id: 'welcome-template', icon: 'lucide-panels-top-left', label: 'Welcome template', run: function() { noOpenDocumentWelcome.click(); } }
-    ];
-    const virtualButton = createDocumentMenuButton('Quick start', actions);
-    openDocumentMenu(
-      virtualButton,
-      virtualButton._documentMenu,
-      getContextMenuPosition(event, noOpenDocument),
-      noOpenDocument
-    );
-  }
-
-  function selectionBelongsToElement(selection, element) {
-    if (!selection || !element || !selection.anchorNode || !selection.focusNode) return false;
-    return element.contains(selection.anchorNode) && element.contains(selection.focusNode);
-  }
-
-  function getDocumentSurfaceContext(surface) {
-    const isSecondary = surface === documentSplitEditor || surface === documentSplitPreview;
-    const tabId = isSecondary ? secondarySplitTabId : activeTabId;
-    const tab = tabs.find(function(item) { return item.id === tabId && isTabOpen(item); });
-    if (!tab) return null;
-    const editor = surface === markdownEditor || surface === documentSplitEditor ? surface : null;
-    let selectedText = '';
-    let selectionStart = null;
-    let selectionEnd = null;
-    if (editor) {
-      selectionStart = editor.selectionStart;
-      selectionEnd = editor.selectionEnd;
-      selectedText = editor.value.slice(selectionStart, selectionEnd);
-    } else {
-      const selection = window.getSelection();
-      if (selectionBelongsToElement(selection, surface)) selectedText = selection.toString();
-    }
-    return {
-      tab: tab,
-      tabId: tabId,
-      editor: editor,
-      selectedText: selectedText,
-      selectionStart: selectionStart,
-      selectionEnd: selectionEnd,
-      editable: Boolean(editor && !editor.readOnly && (isSecondary || canMutateEditor()))
-    };
-  }
-
-  function replaceDocumentSurfaceSelection(context, replacement) {
-    if (!context || !context.editor || !context.editable) return;
-    const start = context.selectionStart;
-    const end = context.selectionEnd;
-    if (context.editor === markdownEditor) {
-      replaceEditorRange(start, end, replacement);
-      return;
-    }
-    context.editor.focus();
-    context.editor.setRangeText(replacement, start, end, 'end');
-    context.editor.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-
-  async function copyDocumentSurfaceSelection(context, cut) {
-    if (!context || !context.selectedText) return;
-    try {
-      await copyTextToClipboard(context.selectedText);
-      if (cut) replaceDocumentSurfaceSelection(context, '');
-      showAppToast(cut ? 'Selection cut to clipboard.' : 'Selection copied to clipboard.', {
-        tone: 'success',
-        title: cut ? 'Cut' : 'Copied',
-        icon: cut ? 'lucide-square-pen' : 'lucide-copy'
-      });
-    } catch (error) {
-      showAppToast('Clipboard access failed: ' + error.message, { tone: 'error', title: 'Clipboard unavailable' });
-    }
-  }
-
-  async function pasteIntoDocumentSurface(context) {
-    if (!context || !context.editable) return;
-    try {
-      if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
-        throw new Error('Paste permission is not available in this browser');
-      }
-      const text = await navigator.clipboard.readText();
-      replaceDocumentSurfaceSelection(context, text);
-    } catch (error) {
-      showAppToast('Paste failed: ' + error.message, { tone: 'error', title: 'Clipboard unavailable' });
-    }
-  }
-
-  function openDocumentSurfaceContextMenu(surface, event) {
-    const context = getDocumentSurfaceContext(surface);
-    if (!context) return;
-    const preserveEditorSelection = Boolean(
-      context.editor &&
-      context.selectedText &&
-      event &&
-      event.button === 2
-    );
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    const actions = [
-      { id: 'new-document', icon: 'lucide-file-plus-2', label: 'New file', run: function() { newTab(); } },
-      { separator: true },
-      { id: 'cut', icon: 'lucide-square-pen', label: 'Cut', disabled: !context.editable || !context.selectedText, run: function() { copyDocumentSurfaceSelection(context, true); } },
-      { id: 'copy', icon: 'lucide-copy', label: 'Copy', disabled: !context.selectedText, run: function() { copyDocumentSurfaceSelection(context, false); } },
-      { id: 'paste', icon: 'lucide-file-plus-2', label: 'Paste', disabled: !context.editable, run: function() { pasteIntoDocumentSurface(context); } },
-      { separator: true }
-    ];
-    getDocumentMenuActions(context.tab).forEach(function(action) {
-      if (action.id !== 'open' && action.id !== 'split' && action.id !== 'split-close') actions.push(action);
-    });
-    const virtualButton = createDocumentMenuButton(context.tab.title || 'Untitled', actions);
-    openDocumentMenu(
-      virtualButton,
-      virtualButton._documentMenu,
-      getContextMenuPosition(event, surface),
-      surface,
-      { focusFirstAction: !preserveEditorSelection }
-    );
-  }
 
   async function moveDocumentToLocation(tabId, workspaceId, folderId, options) {
     const shouldAnnounce = !options || options.announce !== false;
@@ -6725,10 +6576,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       if ((options.type === 'folder' || options.type === 'workspace') && typeof options.onToggle === 'function') options.onToggle();
       else if (typeof options.onActivate === 'function') options.onActivate();
     });
-    row.addEventListener('contextmenu', function(event) {
-      if (event.target.closest('input, select, textarea, a')) return;
-      openDocumentTreeContextMenu(row, event);
-    });
+
     if (options.documentId && !options.temporary) {
       row.draggable = true;
       row.addEventListener('dragstart', function(event) {
@@ -7194,22 +7042,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     const tree = document.getElementById('document-tree');
     const row = event.target.closest('.document-tree-row');
     if (!tree || event.target.closest('.document-menu-btn')) return;
-    if (!row && (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) {
-      openDocumentTreeBackgroundContextMenu(event);
-      return;
-    }
-    if (!row) return;
-    const rows = Array.from(tree.querySelectorAll('.document-tree-row')).filter(function(item) {
-      return item.offsetParent !== null;
-    });
-    const index = rows.indexOf(row);
-    if (index === -1) return;
 
-    if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
-      event.preventDefault();
-      openDocumentTreeContextMenu(row, event);
-      return;
-    }
     if (event.key === 'Delete' && selectedDocumentTreeIds.size > 1) {
       event.preventDefault();
       deleteSelectedDocumentTreeItems();
@@ -7396,16 +7229,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (!event.relatedTarget || !tree.contains(event.relatedTarget)) stopDocumentTreeAutoScroll();
       });
       tree.addEventListener('drop', stopDocumentTreeAutoScroll);
-      tree.addEventListener('contextmenu', function(event) {
-        if (event.target.closest('.document-tree-row, input, button, a, textarea, select')) return;
-        openDocumentTreeBackgroundContextMenu(event);
-      });
     }
 
-    if (sidebar) sidebar.addEventListener('contextmenu', function(event) {
-      if (event.defaultPrevented || event.target.closest('.document-tree-row, input, button, a, textarea, select, [role="menu"]')) return;
-      openDocumentTreeBackgroundContextMenu(event);
-    });
 
     initHorizontalPanelResize(sidebar, resizer, {
       defaultWidth: 288,
@@ -11420,6 +11245,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (isMobileMenu) closeMobileMenu();
     } else if (action === 'close') {
       closeTab(tabId);
+    } else if (action === 'others' || action === 'right' || action === 'left' || action === 'all') {
+      closeTabsByScope(tabId, action);
     }
   }
 
@@ -11459,6 +11286,11 @@ document.addEventListener("DOMContentLoaded", async function () {
       : tabs.length > 1
       ? '<button type="button" class="tab-menu-item" role="menuitem" data-action="split"><i class="lucide lucide-columns-2"></i> Open in split view</button>'
       : '';
+    const openTabs = getOpenTabs();
+    const closeOthersAction = openTabs.length > 1
+      ? '<button type="button" class="tab-menu-item" role="menuitem" data-action="others"><i class="lucide lucide-circle-x"></i> Close others</button>'
+      : '';
+    const closeAllAction = '<button type="button" class="tab-menu-item" role="menuitem" data-action="all"><i class="lucide lucide-square-x"></i> Close all</button>';
     dropdown.innerHTML =
       '<button type="button" class="tab-menu-item" role="menuitem" data-action="rename"><i class="lucide lucide-square-pen"></i> Rename</button>' +
       duplicateAction +
@@ -11466,7 +11298,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       splitAction +
       downloadAction +
       '<div class="tab-menu-separator" role="separator"></div>' +
-      '<button type="button" class="tab-menu-item" role="menuitem" data-action="close"><i class="lucide lucide-x"></i> Close</button>';
+      '<button type="button" class="tab-menu-item" role="menuitem" data-action="close"><i class="lucide lucide-x"></i> Close</button>' +
+      closeOthersAction +
+      closeAllAction;
 
     menuBtn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -11598,101 +11432,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     announceToScreenReader(idsToClose.size + ' tabs closed. Files remain available in Explorer.');
   }
 
-  function openTabContextMenu(tab, point, focusTab) {
-    if (!tab) return;
-    closeTabMenus();
-    const visibleTabs = getTabBarTabs();
-    const openTabs = getOpenTabs();
-    const tabIndex = visibleTabs.findIndex(function(item) { return item.id === tab.id; });
-    const menu = document.createElement('div');
-    menu.className = 'tab-menu-dropdown tab-context-menu open';
-    menu.setAttribute('data-tab-context-menu', 'true');
-    menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', 'Tab actions for ' + (tab.title || 'Untitled'));
 
-    const isCombinedSplitTab = tab.id === activeTabId && Boolean(secondarySplitTabId);
-    const closeActions = [{
-      id: 'close', icon: 'lucide-x', label: 'Close'
-    }, {
-      id: 'others', icon: 'lucide-circle-x', label: 'Close others', disabled: openTabs.length < 2
-    }, {
-      id: 'right', icon: 'lucide-arrow-right-to-line', label: 'Close to the right', disabled: tabIndex >= visibleTabs.length - 1
-    }, {
-      id: 'left', icon: 'lucide-arrow-left-to-line', label: 'Close to the left', disabled: tabIndex <= 0
-    }, {
-      id: 'all', icon: 'lucide-square-x', label: 'Close all'
-    }];
-    const actions = isReleaseNotesTab(tab) ? closeActions.slice(0, 1) : [{
-      id: isCombinedSplitTab ? 'split-close' : 'split',
-      icon: isCombinedSplitTab ? 'lucide-panel-right-close' : 'lucide-columns-2',
-      label: isCombinedSplitTab ? 'Exit split view' : 'Open in split view',
-      disabled: !isCombinedSplitTab && tabs.length < 2
-    }, {
-      separator: true
-    }].concat(closeActions);
-
-    actions.forEach(function(action) {
-      if (action.separator) {
-        const separator = document.createElement('div');
-        separator.className = 'tab-menu-separator';
-        separator.setAttribute('role', 'separator');
-        menu.appendChild(separator);
-        return;
-      }
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'tab-menu-item';
-      button.setAttribute('role', 'menuitem');
-      button.disabled = action.disabled === true;
-      button.innerHTML = '<i class="lucide ' + action.icon + '" aria-hidden="true"></i> ' + action.label;
-      button.addEventListener('click', function(event) {
-        event.preventDefault();
-        event.stopPropagation();
-        if (action.id === 'split') {
-          closeTabMenus();
-          openDocumentSplitPicker(tab.id);
-        } else if (action.id === 'split-close') {
-          closeTabMenus();
-          closeDocumentSplitView();
-        } else {
-          closeTabsByScope(tab.id, action.id);
-        }
-      });
-      menu.appendChild(button);
-    });
-
-    menu.addEventListener('click', function(event) { event.stopPropagation(); });
-    menu.addEventListener('keydown', function(event) {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeTabMenus();
-        if (focusTab) focusTab.focus();
-        return;
-      }
-      const enabledItems = Array.from(menu.querySelectorAll('.tab-menu-item:not(:disabled)'));
-      const currentIndex = enabledItems.indexOf(document.activeElement);
-      let nextIndex = -1;
-      if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % enabledItems.length;
-      if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + enabledItems.length) % enabledItems.length;
-      if (event.key === 'Home') nextIndex = 0;
-      if (event.key === 'End') nextIndex = enabledItems.length - 1;
-      if (nextIndex !== -1) {
-        event.preventDefault();
-        enabledItems[nextIndex].focus();
-      }
-    });
-    document.body.appendChild(menu);
-
-    const margin = 8;
-    const width = menu.offsetWidth || 188;
-    const height = menu.offsetHeight || 230;
-    const left = Math.max(margin, Math.min(point.x, window.innerWidth - width - margin));
-    const top = Math.max(margin, Math.min(point.y, window.innerHeight - height - margin));
-    menu.style.left = left + 'px';
-    menu.style.top = top + 'px';
-    const firstEnabled = menu.querySelector('.tab-menu-item:not(:disabled)');
-    if (firstEnabled) firstEnabled.focus();
-  }
 
   function renderTabBar(tabsArr, currentActiveTabId) {
     const tabList = document.getElementById('tab-list');
@@ -11782,11 +11522,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (tabMenu) item.appendChild(tabMenu.button);
       item.appendChild(closeButton);
 
-      item.addEventListener('contextmenu', function(event) {
-        event.preventDefault();
-        event.stopPropagation();
-        openTabContextMenu(tab, { x: event.clientX, y: event.clientY }, item);
-      });
+
 
       item.addEventListener('dragstart', function() {
         draggedTabId = tab.id;
@@ -11833,14 +11569,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (tabId) switchTab(tabId);
     };
 
-    tabList.oncontextmenu = function(event) {
-      if (event.target.closest('.tab-item')) return;
-      const activeTab = tabs.find(function(tab) { return tab.id === activeTabId && isTabOpen(tab); });
-      if (!activeTab) return;
-      event.preventDefault();
-      const activeItem = tabList.querySelector('.tab-item.active');
-      openTabContextMenu(activeTab, { x: event.clientX, y: event.clientY }, activeItem);
-    };
+
 
 
     // Auto-scroll active tab into view (paint-aligned to prevent forced reflows)
@@ -11862,14 +11591,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const activeIdx = items.indexOf(focusedItem);
       if (activeIdx === -1) return;
 
-      if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
-        e.preventDefault();
-        const tabId = focusedItem.getAttribute('data-tab-id');
-        const tab = tabs.find(function(item) { return item.id === tabId; });
-        const rect = focusedItem.getBoundingClientRect();
-        openTabContextMenu(tab, { x: rect.left + 12, y: rect.bottom - 2 }, focusedItem);
-        return;
-      }
+
       
       let targetIdx = -1;
       if (e.key === 'ArrowRight') {
@@ -12938,22 +12660,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         else newTab(sampleMarkdown, 'Welcome to Markdown');
       };
     }
-    if (noOpenDocument) {
-      noOpenDocument.addEventListener('contextmenu', openQuickStartContextMenu);
-    }
-    [markdownEditor, markdownPreview, documentSplitEditor, documentSplitPreview].forEach(function(surface) {
-      if (!surface) return;
-      if (surface === markdownEditor || surface === documentSplitEditor) {
-        surface.addEventListener('mousedown', function(event) {
-          if (event.button === 2 && surface.selectionStart !== surface.selectionEnd) {
-            event.preventDefault();
-          }
-        });
-      }
-      surface.addEventListener('contextmenu', function(event) {
-        openDocumentSurfaceContextMenu(surface, event);
-      });
-    });
+
     return hadExistingWorkspace;
   }
 
@@ -14755,6 +14462,7 @@ ${selector} .arrowheadPath {
       enhancePreviewCodeBlocks(root);
       enhanceGitHubAlerts(root);
       enhancePreviewImages(root);
+      enhanceRelativeLinks(root);
     });
 
     enhanceReleaseNotesPreview();
@@ -26552,6 +26260,8 @@ ${selector} .arrowheadPath {
     remoteTab.kind = REMOTE_URL_TAB_KIND;
     remoteTab.temporary = true;
     remoteTab.sourceUrl = options && options.sourceUrl ? options.sourceUrl : '';
+    remoteTab.rawUrl = options && options.rawUrl ? options.rawUrl : '';
+    remoteTab.baseUrl = options && options.baseUrl ? options.baseUrl : '';
     remoteTab.shareSnapshotMode = shareMode;
 
     // Filter out initial welcome tab, empty untitled tabs, and release-notes tabs so ONLY the requested remote file is present
@@ -29179,13 +28889,17 @@ ${selector} .arrowheadPath {
       const filePathSegments = segments.slice(4);
       const filePath = filePathSegments.map(decodeURIComponent).join('/');
       const fileName = decodeURIComponent(filePathSegments[filePathSegments.length - 1] || `${repo}.md`);
+      const rawUrl = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(ref)}/${filePathSegments.map(encodeURIComponent).join('/')}`;
+      const dirSegments = filePathSegments.slice(0, -1);
+      const baseUrl = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(ref)}/${dirSegments.length ? dirSegments.map(encodeURIComponent).join('/') + '/' : ''}`;
       return {
         owner,
         repo,
         ref,
         filePath,
         title: fileName,
-        rawUrl: `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(ref)}/${filePathSegments.map(encodeURIComponent).join('/')}`,
+        rawUrl,
+        baseUrl,
         apiUrl: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${filePathSegments.map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`
       };
     }
@@ -29198,6 +28912,7 @@ ${selector} .arrowheadPath {
       const filePathSegments = segments.slice(3);
       const filePath = filePathSegments.map(decodeURIComponent).join('/');
       const fileName = decodeURIComponent(filePathSegments[filePathSegments.length - 1] || `${repo}.md`);
+      const baseUrl = rawInput.substring(0, rawInput.lastIndexOf('/') + 1);
       return {
         owner,
         repo,
@@ -29205,6 +28920,7 @@ ${selector} .arrowheadPath {
         filePath,
         title: fileName,
         rawUrl: rawInput,
+        baseUrl,
         apiUrl: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${filePathSegments.map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`
       };
     }
@@ -29216,6 +28932,7 @@ ${selector} .arrowheadPath {
         gistId,
         title: `Gist ${gistId}`,
         rawUrl: null,
+        baseUrl: null,
         apiUrl: `https://api.github.com/gists/${encodeURIComponent(gistId)}`
       };
     }
@@ -29225,6 +28942,7 @@ ${selector} .arrowheadPath {
     return {
       title: decodeURIComponent(lastSegment),
       rawUrl: rawInput,
+      baseUrl: rawInput.includes('/') ? rawInput.substring(0, rawInput.lastIndexOf('/') + 1) : rawInput,
       apiUrl: null
     };
   }
@@ -29308,7 +29026,9 @@ ${selector} .arrowheadPath {
 
       await openRemoteUrlTab(markdownContent, docTitle, tabMode, {
         readOnly: isReadOnly,
-        sourceUrl: fileUrl
+        sourceUrl: fileUrl,
+        rawUrl: resolved.rawUrl,
+        baseUrl: resolved.baseUrl || ''
       });
 
       // Activate standalone file viewer mode (hides header, toolbars, sidebar, tabs for a distraction-free reader view)

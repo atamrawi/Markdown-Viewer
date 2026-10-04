@@ -125,8 +125,8 @@ test('folder menus contain management actions without a redundant Open action', 
   await page.locator('#document-name-modal-confirm').click();
 
   const folder = page.locator('.document-tree-row[data-tree-type="folder"]', { hasText: 'Menu folder' });
-  await folder.click({ button: 'right' });
-  const menu = page.locator('.document-menu-context.open');
+  await folder.locator('.document-tree-action').click();
+  const menu = page.locator('.document-menu-dropdown.open');
   await expect(menu).toBeVisible();
   await expect(menu.getByRole('menuitem')).toContainText(['New file', 'New folder', 'Rename', 'Delete']);
   await expect(menu.getByRole('menuitem', { name: /^Open$/ })).toHaveCount(0);
@@ -159,14 +159,13 @@ test('Explorer supports modifier selection, contextual bulk delete, and selectio
   const rows = page.locator('.document-tree-row[data-tree-type="document"]:not(.document-tree-temporary)');
   await expect(rows).toHaveCount(3);
 
-  await rows.nth(0).focus();
-  await rows.nth(0).press('Shift+F10');
-  await expect(page.locator('.document-menu-context.open')).toHaveCount(1);
+  await rows.nth(0).locator('.document-tree-action').click();
+  await expect(page.locator('.document-menu-dropdown.open')).toHaveCount(1);
   await page.keyboard.press('Escape');
-  await expect(rows.nth(0)).toBeFocused();
+  await expect(rows.nth(0).locator('.document-tree-action')).toBeFocused();
 
   await rows.nth(0).click();
-  await rows.nth(1).click({ modifiers: ['Control'] });
+  await rows.nth(1).click({ modifiers: ['ControlOrMeta'] });
   await expect(page.locator('.document-tree-row.is-selected')).toHaveCount(2);
   await rows.nth(2).click({ modifiers: ['Meta'] });
   await expect(page.locator('.document-tree-row.is-selected')).toHaveCount(3);
@@ -176,21 +175,21 @@ test('Explorer supports modifier selection, contextual bulk delete, and selectio
   await rows.nth(2).click({ modifiers: ['Shift'] });
   await expect(page.locator('.document-tree-row.is-selected')).toHaveCount(3);
 
-  await rows.nth(1).click({ button: 'right' });
-  const contextMenu = page.locator('.document-menu-context.open');
-  await expect(contextMenu).toHaveCount(1);
-  await expect(contextMenu.getByRole('menuitem')).toHaveText([
+  await rows.nth(1).locator('.document-tree-action').click();
+  const bulkMenu = page.locator('.document-menu-dropdown.open');
+  await expect(bulkMenu).toHaveCount(1);
+  await expect(bulkMenu.getByRole('menuitem')).toHaveText([
     'Open all',
     'Move to…',
     'Delete 3 selected items'
   ]);
-  await contextMenu.getByRole('menuitem', { name: 'Move to…' }).click();
+  await bulkMenu.getByRole('menuitem', { name: 'Move to…' }).click();
   await expect(page.locator('#document-move-modal')).toBeVisible();
   await expect(page.locator('#document-move-modal-title')).toHaveText('Move 3 selected files');
   await page.locator('#document-move-modal-cancel').click();
 
-  await rows.nth(1).click({ button: 'right' });
-  await page.locator('.document-menu-context.open').getByRole('menuitem', { name: 'Delete 3 selected items' }).click();
+  await rows.nth(1).locator('.document-tree-action').click();
+  await page.locator('.document-menu-dropdown.open').getByRole('menuitem', { name: 'Delete 3 selected items' }).click();
   await expect(page.locator('#document-confirm-modal')).not.toBeVisible();
   await expect(page.locator('.document-tree-row[data-tree-type="document"]:not(.document-tree-temporary)')).toHaveCount(0);
 
@@ -214,16 +213,16 @@ test('Explorer opens and moves multiple selected documents', async ({ page }) =>
   const firstRow = page.locator(`.document-tree-row[data-document-id="${firstId}"]`);
   const secondRow = page.locator(`.document-tree-row[data-document-id="${secondId}"]`);
   await firstRow.click();
-  await secondRow.click({ modifiers: ['Control'] });
-  await secondRow.click({ button: 'right' });
-  await page.locator('.document-menu-context.open').getByRole('menuitem', { name: 'Open all' }).click();
+  await secondRow.click({ modifiers: ['ControlOrMeta'] });
+  await secondRow.locator('.document-tree-action').click();
+  await page.locator('.document-menu-dropdown.open').getByRole('menuitem', { name: 'Open all' }).click();
   await expect(page.locator(`#tab-list .tab-item[data-tab-id="${firstId}"]`)).toBeVisible();
   await expect(page.locator(`#tab-list .tab-item[data-tab-id="${secondId}"]`)).toBeVisible();
 
   await firstRow.click();
-  await secondRow.click({ modifiers: ['Control'] });
-  await secondRow.click({ button: 'right' });
-  await page.locator('.document-menu-context.open').getByRole('menuitem', { name: 'Move to…' }).click();
+  await secondRow.click({ modifiers: ['ControlOrMeta'] });
+  await secondRow.locator('.document-tree-action').click();
+  await page.locator('.document-menu-dropdown.open').getByRole('menuitem', { name: 'Move to…' }).click();
   await page.locator('#document-move-destination').selectOption({ label: 'Workspace / Bulk destination' });
   await page.locator('#document-move-modal-confirm').click();
   await expect(firstRow).toHaveAttribute('data-tree-depth', '2');

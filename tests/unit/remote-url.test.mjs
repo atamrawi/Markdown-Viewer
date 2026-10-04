@@ -25,13 +25,17 @@ function resolveMarkdownUrlInfo(input) {
     const filePathSegments = segments.slice(4);
     const filePath = filePathSegments.map(decodeURIComponent).join('/');
     const fileName = decodeURIComponent(filePathSegments[filePathSegments.length - 1] || `${repo}.md`);
+    const rawUrl = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(ref)}/${filePathSegments.map(encodeURIComponent).join('/')}`;
+    const dirSegments = filePathSegments.slice(0, -1);
+    const baseUrl = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(ref)}/${dirSegments.length ? dirSegments.map(encodeURIComponent).join('/') + '/' : ''}`;
     return {
       owner,
       repo,
       ref,
       filePath,
       title: fileName,
-      rawUrl: `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(ref)}/${filePathSegments.map(encodeURIComponent).join('/')}`,
+      rawUrl,
+      baseUrl,
       apiUrl: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${filePathSegments.map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`
     };
   }
@@ -44,6 +48,7 @@ function resolveMarkdownUrlInfo(input) {
     const filePathSegments = segments.slice(3);
     const filePath = filePathSegments.map(decodeURIComponent).join('/');
     const fileName = decodeURIComponent(filePathSegments[filePathSegments.length - 1] || `${repo}.md`);
+    const baseUrl = rawInput.substring(0, rawInput.lastIndexOf('/') + 1);
     return {
       owner,
       repo,
@@ -51,6 +56,7 @@ function resolveMarkdownUrlInfo(input) {
       filePath,
       title: fileName,
       rawUrl: rawInput,
+      baseUrl,
       apiUrl: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${filePathSegments.map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`
     };
   }
@@ -62,6 +68,7 @@ function resolveMarkdownUrlInfo(input) {
       gistId,
       title: `Gist ${gistId}`,
       rawUrl: null,
+      baseUrl: null,
       apiUrl: `https://api.github.com/gists/${encodeURIComponent(gistId)}`
     };
   }
@@ -71,19 +78,21 @@ function resolveMarkdownUrlInfo(input) {
   return {
     title: decodeURIComponent(lastSegment),
     rawUrl: rawInput,
+    baseUrl: rawInput.includes('/') ? rawInput.substring(0, rawInput.lastIndexOf('/') + 1) : rawInput,
     apiUrl: null
   };
 }
 
 test('resolves GitHub blob URL to raw URL and API URL', () => {
-  const resolved = resolveMarkdownUrlInfo('https://github.com/ThisIs-Developer/Markdown-Viewer/blob/main/README.md');
+  const resolved = resolveMarkdownUrlInfo('https://github.com/ThisIs-Developer/Markdown-Viewer/blob/main/docs/sub/README.md');
   assert.equal(resolved.owner, 'ThisIs-Developer');
   assert.equal(resolved.repo, 'Markdown-Viewer');
   assert.equal(resolved.ref, 'main');
-  assert.equal(resolved.filePath, 'README.md');
+  assert.equal(resolved.filePath, 'docs/sub/README.md');
   assert.equal(resolved.title, 'README.md');
-  assert.equal(resolved.rawUrl, 'https://raw.githubusercontent.com/ThisIs-Developer/Markdown-Viewer/main/README.md');
-  assert.equal(resolved.apiUrl, 'https://api.github.com/repos/ThisIs-Developer/Markdown-Viewer/contents/README.md?ref=main');
+  assert.equal(resolved.rawUrl, 'https://raw.githubusercontent.com/ThisIs-Developer/Markdown-Viewer/main/docs/sub/README.md');
+  assert.equal(resolved.baseUrl, 'https://raw.githubusercontent.com/ThisIs-Developer/Markdown-Viewer/main/docs/sub/');
+  assert.equal(resolved.apiUrl, 'https://api.github.com/repos/ThisIs-Developer/Markdown-Viewer/contents/docs/sub/README.md?ref=main');
 });
 
 test('resolves GitHub raw URL correctly', () => {
@@ -94,12 +103,14 @@ test('resolves GitHub raw URL correctly', () => {
   assert.equal(resolved.filePath, 'docs/guide.md');
   assert.equal(resolved.title, 'guide.md');
   assert.equal(resolved.rawUrl, 'https://raw.githubusercontent.com/owner/my-repo/master/docs/guide.md');
+  assert.equal(resolved.baseUrl, 'https://raw.githubusercontent.com/owner/my-repo/master/docs/');
 });
 
 test('resolves generic raw Markdown URL', () => {
   const resolved = resolveMarkdownUrlInfo('https://example.com/files/notes.markdown');
   assert.equal(resolved.title, 'notes.markdown');
   assert.equal(resolved.rawUrl, 'https://example.com/files/notes.markdown');
+  assert.equal(resolved.baseUrl, 'https://example.com/files/');
   assert.equal(resolved.apiUrl, null);
 });
 

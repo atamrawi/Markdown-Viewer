@@ -21,8 +21,8 @@ async function createFolder(page, name) {
 
 async function moveDocumentToFolder(page, documentId, folderName) {
   const row = page.locator(`.document-tree-row[data-document-id="${documentId}"]`);
-  await row.click({ button: 'right' });
-  await page.locator('.document-menu-context.open').getByRole('menuitem', { name: 'Move', exact: true }).click();
+  await row.locator('.document-tree-action').click();
+  await page.locator('.document-menu-dropdown.open').getByRole('menuitem', { name: 'Move', exact: true }).click();
   await page.locator('#document-move-destination').selectOption({ label: `Workspace / ${folderName}` });
   await page.locator('#document-move-modal-confirm').click();
 }
