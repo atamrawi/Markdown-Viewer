@@ -23,6 +23,14 @@
       if (['normal', 'wide', 'full'].indexOf(width) !== -1) {
         document.documentElement.dataset.standaloneWidth = width;
       }
+      var fontSize = searchParams.get('fontSize') || searchParams.get('size') || hashParams.get('fontSize') || hashParams.get('size') || localStorage.getItem('markdownViewerFontSize');
+      if (fontSize) {
+        var parsedSize = parseInt(fontSize, 10);
+        if (!isNaN(parsedSize) && parsedSize >= 10 && parsedSize <= 36) {
+          document.documentElement.style.setProperty('--markdown-font-size', parsedSize + 'px');
+          document.documentElement.dataset.markdownFontSize = String(parsedSize);
+        }
+      }
     }
   } catch (_) {}
 })();

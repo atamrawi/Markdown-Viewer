@@ -1850,6 +1850,7 @@ body.document-sidebar-collapsed .document-sidebar {
   /* Ensuring the markdown content matches preview background */
   color: var(--preview-text-color);
   /* Using specific text color for preview content */
+  font-size: var(--markdown-font-size, 16px);
 }
 
 .markdown-body a.reference-link {
@@ -14749,5 +14750,36 @@ body.standalone-file-mode .standalone-floating-controls {
 body.standalone-file-mode .standalone-theme-toggle,
 html[data-standalone-mode="true"] .standalone-theme-toggle {
   display: flex !important;
+}
+
+.standalone-btn-font-symbol {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  user-select: none;
+  pointer-events: none;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.standalone-btn-font-symbol.font-symbol-decrease {
+  font-size: 0.85rem;
+}
+
+.standalone-btn-font-symbol.font-symbol-increase {
+  font-size: 1.05rem;
+}
+
+.standalone-floating-btn:hover .standalone-btn-font-symbol {
+  transform: scale(1.15);
+}
+
+.standalone-floating-btn:disabled,
+.standalone-floating-btn.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05) !important;
 }
 

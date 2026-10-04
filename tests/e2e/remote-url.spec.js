@@ -52,6 +52,22 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(page.locator('html')).toHaveAttribute('data-standalone-width', 'full');
     await widthToggle.click();
     await expect(page.locator('html')).toHaveAttribute('data-standalone-width', 'normal');
+
+    // Verify top-right floating font size decrease and increase buttons
+    const fontDecBtn = page.locator('#standalone-font-decrease');
+    const fontIncBtn = page.locator('#standalone-font-increase');
+    await expect(fontDecBtn).toBeVisible();
+    await expect(fontIncBtn).toBeVisible();
+    
+    // Increase font size
+    await fontIncBtn.click();
+    await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '18');
+    await fontIncBtn.click();
+    await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '20');
+
+    // Decrease font size
+    await fontDecBtn.click();
+    await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '18');
   });
 
   test('loads remote Markdown with light theme and standalone reader mode', async ({ page }) => {
