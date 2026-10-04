@@ -88,9 +88,58 @@ test.describe('Remote URL and Parameter Viewer', () => {
     const img = preview.locator('.preview-image-container img');
     await expect(img).toHaveAttribute('src', 'https://raw.githubusercontent.com/org/repo/main/assets/images/3.png');
 
-    // Verify relative link href was rewritten
     const link = preview.locator('a:has-text("Related Docs")');
     await expect(link).toHaveAttribute('href', 'https://raw.githubusercontent.com/org/repo/main/docs/architecture.md');
+  });
+
+  test('immediately suppresses split view and editor workspace without flashing when loading remote URL', async ({ page }) => {
+    await page.route('https://raw.githubusercontent.com/test-org/test-repo/main/docs/slow.md', async route => {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 400));
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/markdown; charset=utf-8',
+        body: '# Slow Loaded Document\n\nContent loaded after delay.'
+      });
+    });
+
+    const navigationPromise = page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/slow.md');
+
+    // Immediately after DOM loads, verify standalone mode is set on html and editor/header are hidden
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-mode', 'true');
+    await expect(page.locator('.app-header')).toBeHidden();
+    await expect(page.locator('.editor-pane')).toBeHidden();
+    await expect(page.locator('#tab-bar')).toBeHidden();
+    await expect(page.locator('#document-sidebar')).toBeHidden();
+
+    const preview = page.locator('#markdown-preview');
+    await expect(preview.locator('h1')).toHaveText('Slow Loaded Document');
+  });
+
+  test('displays a clean error card with reload button on fetch failure without flashing editor workspace', async ({ page }) => {
+    await page.route('https://raw.githubusercontent.com/test-org/test-repo/main/docs/nonexistent.md', async route => {
+      await route.fulfill({
+        status: 404,
+        contentType: 'text/plain',
+        body: '404: Not Found'
+      });
+    });
+
+    await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/nonexistent.md');
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+
+    // Standalone reader mode is maintained
+    await expect(page.locator('body')).toHaveClass(/standalone-file-mode/);
+    await expect(page.locator('.app-header')).toBeHidden();
+    await expect(page.locator('.editor-pane')).toBeHidden();
+    await expect(page.locator('#tab-bar')).toBeHidden();
+
+    // Clean error card is rendered in preview
+    const errorContainer = page.locator('.remote-url-error-container');
+    await expect(errorContainer).toBeVisible();
+    await expect(errorContainer.locator('.remote-url-error-title')).toHaveText('Unable to Load Document');
+    await expect(errorContainer.locator('.remote-url-error-btn-primary')).toHaveText('Reload Page');
   });
 });
 

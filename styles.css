@@ -9719,8 +9719,7 @@ button.live-share-participant-overflow {
   border-radius: 6px;
   position: relative;
   overflow: hidden;
-  /* PERF-017: Removed skeleton-pulse; shimmer-only is sufficient and halves GPU compositing layers */
-  /* animation: skeleton-pulse 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate; */
+  animation: skeleton-pulse 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
 }
 
 .skeleton-placeholder::after {
@@ -9745,15 +9744,75 @@ button.live-share-participant-overflow {
 }
 
 @keyframes skeleton-pulse {
-
   0%,
   100% {
     opacity: 1;
   }
-
   50% {
-    opacity: 0.82;
+    opacity: 0.5;
   }
+}
+
+/* Remote URL Error Container */
+.remote-url-error-container {
+  max-width: 560px;
+  margin: 60px auto;
+  padding: 36px 32px;
+  border-radius: 12px;
+  background: var(--card-bg, #1e2029);
+  border: 1px solid var(--border-color, #30363d);
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.remote-url-error-icon {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.remote-url-error-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-color, #e6edf3);
+}
+
+.remote-url-error-message {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted, #8b949e);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.remote-url-error-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.remote-url-error-btn {
+  padding: 9px 24px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.remote-url-error-btn-primary {
+  background: var(--accent-color, #238636);
+  color: #ffffff;
+}
+
+.remote-url-error-btn-primary:hover {
+  filter: brightness(1.1);
 }
 
 .skeleton-circle {
@@ -14499,10 +14558,28 @@ body.release-notes-active .mobile-stats-container {
    Standalone File Reader Mode
    ============================================ */
 
+html[data-standalone-mode="true"] body,
 body.standalone-file-mode {
   overflow: hidden;
 }
 
+html[data-standalone-mode="true"] .app-header,
+html[data-standalone-mode="true"] #document-sidebar,
+html[data-standalone-mode="true"] #document-sidebar-backdrop,
+html[data-standalone-mode="true"] #document-sidebar-resizer,
+html[data-standalone-mode="true"] #tab-bar,
+html[data-standalone-mode="true"] #markdown-format-toolbar,
+html[data-standalone-mode="true"] .markdown-format-toolbar,
+html[data-standalone-mode="true"] .editor-pane,
+html[data-standalone-mode="true"] .resize-divider,
+html[data-standalone-mode="true"] #document-outline,
+html[data-standalone-mode="true"] #review-panel,
+html[data-standalone-mode="true"] #status-bar,
+html[data-standalone-mode="true"] #welcome-preview,
+html[data-standalone-mode="true"] .mobile-header-bar,
+html[data-standalone-mode="true"] .mobile-menu-drawer,
+html[data-standalone-mode="true"] .mobile-menu-overlay,
+html[data-standalone-mode="true"] .mobile-view-mode-bar,
 body.standalone-file-mode .app-header,
 body.standalone-file-mode #document-sidebar,
 body.standalone-file-mode #document-sidebar-backdrop,
@@ -14515,6 +14592,7 @@ body.standalone-file-mode .resize-divider,
 body.standalone-file-mode #document-outline,
 body.standalone-file-mode #review-panel,
 body.standalone-file-mode #status-bar,
+body.standalone-file-mode #welcome-preview,
 body.standalone-file-mode .mobile-header-bar,
 body.standalone-file-mode .mobile-menu-drawer,
 body.standalone-file-mode .mobile-menu-overlay,
@@ -14522,22 +14600,31 @@ body.standalone-file-mode .mobile-view-mode-bar {
   display: none !important;
 }
 
+#markdown-standalone-skeleton {
+  display: none;
+}
+
+html[data-standalone-mode="true"] #markdown-standalone-skeleton,
+body.standalone-file-mode #markdown-standalone-skeleton {
+  display: block !important;
+}
+
+html[data-standalone-mode="true"] .document-workspace-shell,
 body.standalone-file-mode .document-workspace-shell {
   height: 100vh !important;
   height: 100dvh !important;
   max-height: 100vh !important;
 }
 
-body.standalone-file-mode .document-editor-area {
-  height: 100% !important;
-  width: 100% !important;
-}
-
+html[data-standalone-mode="true"] .document-editor-area,
+html[data-standalone-mode="true"] .content-container,
+body.standalone-file-mode .document-editor-area,
 body.standalone-file-mode .content-container {
   height: 100% !important;
   width: 100% !important;
 }
 
+html[data-standalone-mode="true"] .preview-pane,
 body.standalone-file-mode .preview-pane {
   flex: 1 1 100% !important;
   width: 100% !important;
@@ -14547,6 +14634,7 @@ body.standalone-file-mode .preview-pane {
   overflow-y: auto !important;
 }
 
+html[data-standalone-mode="true"] #markdown-preview,
 body.standalone-file-mode #markdown-preview {
   max-width: 860px;
   margin: 0 auto;
@@ -14555,6 +14643,7 @@ body.standalone-file-mode #markdown-preview {
 }
 
 @media (max-width: 768px) {
+  html[data-standalone-mode="true"] #markdown-preview,
   body.standalone-file-mode #markdown-preview {
     padding: 2rem 1.25rem 5rem 1.25rem;
   }

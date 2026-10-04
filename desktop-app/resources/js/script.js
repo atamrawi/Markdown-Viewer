@@ -1,4 +1,41 @@
+// Early detection of standalone/remote URL parameters to eliminate layout flash
+(function() {
+  try {
+    const searchParams = new URLSearchParams(window.location.search);
+    const hash = window.location.hash || '';
+    let hashParams = new URLSearchParams();
+    if (hash.includes('?')) {
+      hashParams = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
+    } else if (hash.startsWith('#url=') || hash.startsWith('#file=') || hash.startsWith('#src=') || hash.startsWith('#md=')) {
+      hashParams = new URLSearchParams(hash.slice(1));
+    }
+    const hasRemote = Boolean(
+      searchParams.get('url') || searchParams.get('file') || searchParams.get('src') || searchParams.get('md') ||
+      hashParams.get('url') || hashParams.get('file') || hashParams.get('src') || hashParams.get('md')
+    );
+    if (hasRemote) {
+      document.documentElement.dataset.standaloneMode = 'true';
+    }
+  } catch (_) {}
+})();
+
 document.addEventListener("DOMContentLoaded", async function () {
+  function hasRemoteUrlParameter() {
+    const searchParams = new URLSearchParams(window.location.search);
+    const hash = window.location.hash || '';
+    let hashParams = new URLSearchParams();
+    if (hash.includes('?')) {
+      hashParams = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
+    } else if (hash.startsWith('#url=') || hash.startsWith('#file=') || hash.startsWith('#src=') || hash.startsWith('#md=')) {
+      hashParams = new URLSearchParams(hash.slice(1));
+    }
+    return Boolean(
+      searchParams.get('url') || searchParams.get('file') || searchParams.get('src') || searchParams.get('md') ||
+      hashParams.get('url') || hashParams.get('file') || hashParams.get('src') || hashParams.get('md')
+    );
+  }
+
+  let remoteUrlLoaded = false;
   window.alert = function(message) { showAppToast(message); };
   const PRIVATE_MODE_KEY = 'markdownViewerPrivateMode';
   const APP_VERSION = '3.10.3';
@@ -310,6 +347,51 @@ document.addEventListener("DOMContentLoaded", async function () {
   const shareSnapshotViewOnlyTabIds = new Set();
   const SHARE_SNAPSHOT_TAB_KIND = 'share-snapshot';
   const REMOTE_URL_TAB_KIND = 'remote-url';
+  const LIVE_SHARE_AVATAR_LIMIT = 4;
+  const LIVE_SHARE_PARTICIPANT_STALE_MS = 45000;
+  const LIVE_SHARE_JOIN_TIMEOUT_MS = 8000;
+  const LIVE_SHARE_ACCESS_EDIT = 'edit';
+  const LIVE_SHARE_ACCESS_VIEW = 'view';
+  const LIVE_SHARE_NON_MUTATING_ACTIONS = ['fullscreen', 'outline', 'find', 'help', 'info'];
+  const LIVE_SHARE_ADJECTIVES = [
+    'Acidic',
+    'Awesome',
+    'Bitter',
+    'Burnt',
+    'Buttery',
+    'Creamy',
+    'Fantastic',
+    'Fresh',
+    'Fried',
+    'Good',
+    'Juicy',
+    'Moist',
+    'Raw',
+    'Roasted',
+    'Salty',
+    'Seasoned',
+    'Sharp',
+    'Sour',
+    'Sugary',
+    'Sweet',
+    'Stale'
+  ];
+  const LIVE_SHARE_NOUNS = [
+    'Bamboo',
+    'Cabbage',
+    'Cactus',
+    'Fern',
+    'Garlic',
+    'Lemon',
+    'Lily',
+    'Melon',
+    'Onion',
+    'Palm',
+    'Plum',
+    'Tofu',
+    'Tomato',
+    'Watermelon'
+  ];
   const REVIEW_TARGET_SELECTOR = 'h1, h2, h3, h4, h5, h6, p, li, blockquote, img, video, audio, mjx-container, .frontmatter-table, .diagram-viewer, .geojson-container, .topojson-container, .stl-container';
   const REVIEW_ELEMENT_TYPES = new Set(['image', 'media', 'diagram', 'math', 'table']);
   const REVIEW_REPLY_COLLAPSE_THRESHOLD = 4;
@@ -2199,6 +2281,14 @@ document.addEventListener("DOMContentLoaded", async function () {
   const initialTheme = normalizedUrlTheme || (savedTheme ?? (prefersDarkMode ? "dark" : "light"));
 
   document.documentElement.setAttribute("data-theme", initialTheme);
+
+  if (hasRemoteUrlParameter()) {
+    document.documentElement.dataset.standaloneMode = 'true';
+    document.body.classList.add('standalone-file-mode');
+    const reqMode = initialUrlSearchParams.get('mode') || initialHashParams.get('mode') || 'preview';
+    const containerModeClass = reqMode === 'editor' ? 'view-editor-only' : reqMode === 'split' ? 'view-split' : 'view-preview-only';
+    if (contentContainer) contentContainer.className = 'content-container ' + containerModeClass;
+  }
 
   function updateThemeToggleUI(theme) {
     const darkModeEnabled = theme === "dark";
@@ -12535,13 +12625,13 @@ document.addEventListener("DOMContentLoaded", async function () {
         await workspaceStorage.init();
         secretWorkspaceEnvelopeCache = await workspaceStorage.getSecretManifest();
         const integrity = await workspaceStorage.auditAndRepairDocuments();
-        if (integrity.recoveredOrphans) {
+        if (integrity.recoveredOrphans && !hasRemoteUrlParameter()) {
           showAppToast(integrity.recoveredOrphans + ' orphaned document' + (integrity.recoveredOrphans === 1 ? '' : 's') + ' recovered.', {
             tone: 'info',
             title: 'Workspace repaired'
           });
         }
-        if (integrity.missingContents) {
+        if (integrity.missingContents && !hasRemoteUrlParameter()) {
           showAppToast(integrity.missingContents + ' document' + (integrity.missingContents === 1 ? ' has' : 's have') + ' missing content. Editing is blocked to avoid overwriting recovery evidence.', {
             tone: 'error',
             title: 'Workspace corruption detected'
@@ -12588,25 +12678,63 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (!recovered) {
         throw new Error('Recovered edits could not be committed to workspace storage.');
       }
-      showAppToast(recoveredIds.length + ' interrupted edit' + (recoveredIds.length === 1 ? '' : 's') + ' recovered.', {
-        tone: 'info',
-        title: 'Unsaved work restored'
-      });
+      if (!hasRemoteUrlParameter()) {
+        showAppToast(recoveredIds.length + ' interrupted edit' + (recoveredIds.length === 1 ? '' : 's') + ' recovered.', {
+          tone: 'info',
+          title: 'Unsaved work restored'
+        });
+      }
     }
-    const activeTab = tabs.find(function(t) { return t.id === activeTabId && !t.storageCorruption; });
-    selectedDocumentId = activeTabId;
-    updateNoOpenDocumentState();
-    if (activeTab) {
-      await ensureTabContent(activeTab);
-      markdownEditor.value = activeTab.content;
-      initTabHistory(activeTabId, activeTab.content);
-      updateUndoRedoButtons();
-      restoreViewMode(activeTab.viewMode);
-      refreshLiveEditorUi();
-      renderMarkdown();
+    const isRemoteUrl = hasRemoteUrlParameter();
+    let activeTab = tabs.find(function(t) { return t.id === activeTabId && !t.storageCorruption; });
+    if (isRemoteUrl) {
+      document.body.classList.add('standalone-file-mode');
+      document.documentElement.dataset.standaloneMode = 'true';
+      const searchParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash || '';
+      let hashParams = new URLSearchParams();
+      if (hash.includes('?')) hashParams = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
+      else if (hash.startsWith('#url=') || hash.startsWith('#file=') || hash.startsWith('#src=') || hash.startsWith('#md=')) hashParams = new URLSearchParams(hash.slice(1));
+      const reqMode = searchParams.get('mode') || hashParams.get('mode') || 'preview';
+      const containerModeClass = reqMode === 'editor' ? 'view-editor-only' : reqMode === 'split' ? 'view-split' : 'view-preview-only';
+      if (contentContainer) contentContainer.className = 'content-container ' + containerModeClass;
+      showPreviewSkeleton();
+      const loaded = await loadFromUrlParameters();
+      if (!loaded) {
+        document.body.classList.remove('standalone-file-mode');
+        delete document.documentElement.dataset.standaloneMode;
+        selectedDocumentId = activeTabId;
+        updateNoOpenDocumentState();
+        if (activeTab) {
+          await ensureTabContent(activeTab);
+          markdownEditor.value = activeTab.content;
+          initTabHistory(activeTabId, activeTab.content);
+          updateUndoRedoButtons();
+          restoreViewMode(activeTab.viewMode);
+          refreshLiveEditorUi();
+          renderMarkdown();
+        } else {
+          markdownEditor.value = '';
+          updateUndoRedoButtons();
+        }
+      } else {
+        activeTab = null;
+      }
     } else {
-      markdownEditor.value = '';
-      updateUndoRedoButtons();
+      selectedDocumentId = activeTabId;
+      updateNoOpenDocumentState();
+      if (activeTab) {
+        await ensureTabContent(activeTab);
+        markdownEditor.value = activeTab.content;
+        initTabHistory(activeTabId, activeTab.content);
+        updateUndoRedoButtons();
+        restoreViewMode(activeTab.viewMode);
+        refreshLiveEditorUi();
+        renderMarkdown();
+      } else {
+        markdownEditor.value = '';
+        updateUndoRedoButtons();
+      }
     }
     const editorPane = document.querySelector('.editor-pane');
     if (editorPane) {
@@ -26571,51 +26699,6 @@ ${selector} .arrowheadPath {
   // Live Share (Yjs CRDT + Cloudflare room WebSocket)
   // ============================================
 
-  const LIVE_SHARE_AVATAR_LIMIT = 4;
-  const LIVE_SHARE_PARTICIPANT_STALE_MS = 45000;
-  const LIVE_SHARE_JOIN_TIMEOUT_MS = 8000;
-  const LIVE_SHARE_ACCESS_EDIT = 'edit';
-  const LIVE_SHARE_ACCESS_VIEW = 'view';
-  const LIVE_SHARE_NON_MUTATING_ACTIONS = ['fullscreen', 'outline', 'find', 'help', 'info'];
-  const LIVE_SHARE_ADJECTIVES = [
-    'Acidic',
-    'Awesome',
-    'Bitter',
-    'Burnt',
-    'Buttery',
-    'Creamy',
-    'Fantastic',
-    'Fresh',
-    'Fried',
-    'Good',
-    'Juicy',
-    'Moist',
-    'Raw',
-    'Roasted',
-    'Salty',
-    'Seasoned',
-    'Sharp',
-    'Sour',
-    'Sugary',
-    'Sweet',
-    'Stale'
-  ];
-  const LIVE_SHARE_NOUNS = [
-    'Bamboo',
-    'Cabbage',
-    'Cactus',
-    'Fern',
-    'Garlic',
-    'Lemon',
-    'Lily',
-    'Melon',
-    'Onion',
-    'Palm',
-    'Plum',
-    'Tofu',
-    'Tomato',
-    'Watermelon'
-  ];
   const liveShareModal        = document.getElementById('live-share-modal');
   const liveShareModalCloseX  = document.getElementById('live-share-modal-close-icon');
   const liveShareStartBtn     = document.getElementById('live-share-start-btn');
@@ -28997,6 +29080,7 @@ ${selector} .arrowheadPath {
   }
 
   async function loadFromUrlParameters() {
+    if (remoteUrlLoaded) return true;
     const searchParams = new URLSearchParams(window.location.search);
     const hash = window.location.hash || '';
     let hashParams = new URLSearchParams();
@@ -29015,7 +29099,9 @@ ${selector} .arrowheadPath {
     const isReadOnly = searchParams.get('readonly') !== '0' && searchParams.get('readonly') !== 'false' && hashParams.get('readonly') !== '0' && hashParams.get('readonly') !== 'false';
     const isFullscreen = ['1', 'true', 'yes'].includes((searchParams.get('fullscreen') || searchParams.get('fs') || hashParams.get('fullscreen') || hashParams.get('fs') || '').toLowerCase());
 
-    showAppToast('Loading remote Markdown document…', { tone: 'info', title: 'Opening file' });
+    document.body.classList.add('standalone-file-mode');
+    document.documentElement.dataset.standaloneMode = 'true';
+    showPreviewSkeleton();
 
     try {
       const resolved = resolveMarkdownUrlInfo(fileUrl);
@@ -29041,15 +29127,26 @@ ${selector} .arrowheadPath {
         updateDocumentSidebarVisibility();
       }
 
-      showAppToast(`Loaded ${docTitle}`, { tone: 'success', title: 'Ready' });
+      remoteUrlLoaded = true;
       return true;
     } catch (error) {
       console.error('Failed to load remote Markdown file:', error);
-      showAppToast(error && error.message ? error.message : 'Failed to fetch remote Markdown file.', {
-        tone: 'error',
-        title: 'Error loading URL'
-      });
-      return false;
+      if (markdownPreview) {
+        markdownPreview.removeAttribute('aria-busy');
+        markdownPreview.dataset.renderState = 'error';
+        const safeErrorMsg = escapeHtml(error && error.message ? error.message : 'Unable to load remote document.');
+        markdownPreview.innerHTML = `
+          <div class="remote-url-error-container">
+            <div class="remote-url-error-icon">⚠️</div>
+            <h2 class="remote-url-error-title">Unable to Load Document</h2>
+            <p class="remote-url-error-message">${safeErrorMsg}</p>
+            <div class="remote-url-error-actions">
+              <button type="button" class="remote-url-error-btn remote-url-error-btn-primary" onclick="window.location.reload()">Reload Page</button>
+            </div>
+          </div>
+        `;
+      }
+      return true;
     }
   }
 
@@ -31916,20 +32013,7 @@ ${selector} .arrowheadPath {
     });
   }
 
-  function hasRemoteUrlParameter() {
-    const searchParams = new URLSearchParams(window.location.search);
-    const hash = window.location.hash || '';
-    let hashParams = new URLSearchParams();
-    if (hash.includes('?')) {
-      hashParams = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
-    } else if (hash.startsWith('#url=') || hash.startsWith('#file=') || hash.startsWith('#src=') || hash.startsWith('#md=')) {
-      hashParams = new URLSearchParams(hash.slice(1));
-    }
-    return Boolean(
-      searchParams.get('url') || searchParams.get('file') || searchParams.get('src') || searchParams.get('md') ||
-      hashParams.get('url') || hashParams.get('file') || hashParams.get('src') || hashParams.get('md')
-    );
-  }
+
 
   // Wait until all editor and collaboration dependencies exist before adding the update tab.
   if (releaseNotesLaunch.shouldOpen && !hasRemoteUrlParameter()) {

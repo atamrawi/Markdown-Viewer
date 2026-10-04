@@ -16,6 +16,8 @@
     
 
     <title data-seo-field="document-title">Markdown Viewer - Online Markdown Editor with Live Preview</title>
+    <!-- Early standalone detection before stylesheets or body parse to eliminate layout flash -->
+    <script src="assets/early-init.js"></script>
     <link href="/assets/icon.jpg" rel="icon" type="image/jpg">
     <!-- Updated libraries to latest versions with Subresource Integrity (SRI) -->
     <link rel="stylesheet" href="/libs/bootstrap.min.css" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
@@ -1657,6 +1659,17 @@
                         <p>Ordinary editing and autosave stay on this device. Sharing, GitHub import, external images, and remote diagram rendering use network services. Keep separate backups: clearing browser storage can remove your locally saved documents.</p>
                     </article>
                     <!-- welcome-preview:end -->
+                    <div class="skeleton-preview-container" id="markdown-standalone-skeleton" aria-hidden="true">
+                        <div class="skeleton-placeholder skeleton-title"></div>
+                        <div class="skeleton-placeholder skeleton-line skeleton-w90"></div>
+                        <div class="skeleton-placeholder skeleton-line skeleton-w85"></div>
+                        <div class="skeleton-placeholder skeleton-line skeleton-w60"></div>
+                        
+                        <div class="skeleton-placeholder skeleton-subtitle"></div>
+                        <div class="skeleton-placeholder skeleton-line skeleton-w88"></div>
+                        <div class="skeleton-placeholder skeleton-line skeleton-w92"></div>
+                        <div class="skeleton-placeholder skeleton-line skeleton-w45"></div>
+                    </div>
                 </div>
             </div>
             <div id="document-split-divider" class="document-split-divider" role="separator" aria-orientation="vertical" aria-label="Split document divider" hidden></div>

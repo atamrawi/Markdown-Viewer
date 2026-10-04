@@ -1,6 +1,25 @@
 (function () {
   'use strict';
 
+  // Early detection of standalone/remote URL parameters to eliminate layout flash
+  try {
+    const searchParams = new URLSearchParams(window.location.search);
+    const hash = window.location.hash || '';
+    let hashParams = new URLSearchParams();
+    if (hash.includes('?')) {
+      hashParams = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
+    } else if (hash.startsWith('#url=') || hash.startsWith('#file=') || hash.startsWith('#src=') || hash.startsWith('#md=')) {
+      hashParams = new URLSearchParams(hash.slice(1));
+    }
+    const hasRemote = Boolean(
+      searchParams.get('url') || searchParams.get('file') || searchParams.get('src') || searchParams.get('md') ||
+      hashParams.get('url') || hashParams.get('file') || hashParams.get('src') || hashParams.get('md')
+    );
+    if (hasRemote) {
+      document.documentElement.dataset.standaloneMode = 'true';
+    }
+  } catch (_) {}
+
   const DATABASE_NAME = 'markdownViewerWorkspace';
   const DATABASE_VERSION = 3;
   const VAULT_FORMAT_VERSION = 1;
