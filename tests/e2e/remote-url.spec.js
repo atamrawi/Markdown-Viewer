@@ -68,6 +68,17 @@ test.describe('Remote URL and Parameter Viewer', () => {
     // Decrease font size
     await fontDecBtn.click();
     await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '18');
+
+    // Change width to wide
+    await widthToggle.click();
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-width', 'wide');
+
+    // Verify reset button restores width and font size to default
+    const resetBtn = page.locator('#standalone-reset');
+    await expect(resetBtn).toBeVisible();
+    await resetBtn.click();
+    await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '16');
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-width', 'normal');
   });
 
   test('loads remote Markdown with light theme and standalone reader mode', async ({ page }) => {

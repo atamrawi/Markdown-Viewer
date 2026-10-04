@@ -14747,6 +14747,10 @@ body.standalone-file-mode .standalone-floating-controls {
   transform: rotate(20deg);
 }
 
+#standalone-reset:hover i {
+  transform: rotate(-60deg);
+}
+
 body.standalone-file-mode .standalone-theme-toggle,
 html[data-standalone-mode="true"] .standalone-theme-toggle {
   display: flex !important;

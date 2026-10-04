@@ -24111,6 +24111,23 @@ ${selector} .arrowheadPath {
     setStandaloneReaderWidth(getStandaloneReaderWidth());
   }
 
+  const standaloneResetBtn = document.getElementById("standalone-reset");
+  if (standaloneResetBtn) {
+    standaloneResetBtn.addEventListener('click', function() {
+      setReaderFontSize(16);
+      setStandaloneReaderWidth('normal');
+      const icon = standaloneResetBtn.querySelector('i');
+      if (icon) {
+        icon.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        icon.style.transform = 'rotate(-360deg)';
+        setTimeout(() => {
+          icon.style.transition = '';
+          icon.style.transform = '';
+        }, 400);
+      }
+    });
+  }
+
   async function nativeSaveMarkdown() {
     try {
       const content = markdownEditor.value;
