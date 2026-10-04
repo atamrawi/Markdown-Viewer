@@ -19,6 +19,10 @@
       if (theme === 'light' || theme === 'dark') {
         document.documentElement.dataset.theme = theme;
       }
+      var width = searchParams.get('width') || hashParams.get('width') || localStorage.getItem('markdownViewerStandaloneWidth') || 'normal';
+      if (['normal', 'wide', 'full'].indexOf(width) !== -1) {
+        document.documentElement.dataset.standaloneWidth = width;
+      }
     }
   } catch (_) {}
 })();

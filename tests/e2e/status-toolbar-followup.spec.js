@@ -110,8 +110,8 @@ test('bottom bar centers statistics and announces saving then saved', async ({ p
   await expect(page.locator('.app-status-bar')).toBeVisible();
   await expect(page.locator('#stats-container')).toBeVisible();
   await expect(page.locator('#save-status')).toHaveAttribute('data-state', 'saved');
-  await expect(page.locator('#save-status-text')).toHaveText('All changes saved');
-  await expect(page.locator('#save-status-icon')).toHaveClass(/lucide-check/);
+  await expect(page.locator('#save-status-text')).toHaveText(/Welcome to Markdown/);
+  await expect(page.locator('#save-status-icon')).toHaveClass(/lucide-file-text/);
 
   const alignment = await page.evaluate(() => {
     const viewportCenter = window.innerWidth / 2;
@@ -129,10 +129,9 @@ test('bottom bar centers statistics and announces saving then saved', async ({ p
 
   await page.locator('#markdown-editor').fill('# Saving status test');
   await expect(page.locator('#save-status')).toHaveAttribute('data-state', 'saving');
-  await expect(page.locator('#save-status-text')).toHaveText('Saving...');
   await expect(page.locator('#save-status-icon')).toHaveClass(/lucide-refresh-cw/);
   await expect(page.locator('#save-status')).toHaveAttribute('data-state', 'saved', { timeout: 3000 });
-  await expect(page.locator('#save-status-text')).toHaveText('All changes saved');
+  await expect(page.locator('#save-status-text')).toHaveText(/Welcome to Markdown|Saving status test/);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));

@@ -136,9 +136,14 @@
 </head>
 <body>
     <div class="app-container">
-        <button id="standalone-theme-toggle" class="standalone-theme-toggle" type="button" aria-label="Toggle appearance" title="Toggle appearance">
-            <i id="standalone-theme-icon" class="lucide lucide-moon" aria-hidden="true"></i>
-        </button>
+        <div class="standalone-floating-controls" id="standalone-floating-controls">
+            <button id="standalone-width-toggle" class="standalone-floating-btn" type="button" aria-label="Toggle reader width" title="Reading width: Normal (860px)">
+                <i id="standalone-width-icon" class="lucide lucide-maximize" aria-hidden="true"></i>
+            </button>
+            <button id="standalone-theme-toggle" class="standalone-floating-btn standalone-theme-toggle" type="button" aria-label="Toggle appearance" title="Toggle appearance">
+                <i id="standalone-theme-icon" class="lucide lucide-moon" aria-hidden="true"></i>
+            </button>
+        </div>
         <header class="app-header">
             <div class="container-fluid d-flex justify-content-between align-items-center header-container">
                 <!-- Left section: Application identity and GitHub -->
@@ -1897,9 +1902,9 @@
               <i class="lucide lucide-case-sensitive me-1" aria-hidden="true"></i><span id="char-count">0</span> <span id="lbl-chars">Chars</span>
             </div>
           </div>
-          <div id="save-status" class="app-save-status is-saved" data-state="saved" role="status" aria-live="polite" aria-atomic="true">
-            <i id="save-status-icon" class="lucide lucide-check" aria-hidden="true"></i>
-            <span id="save-status-text">All changes saved</span>
+          <div id="save-status" class="app-save-status is-saved" data-state="saved" role="status" aria-live="polite" aria-atomic="true" title="All changes saved">
+            <i id="save-status-icon" class="lucide lucide-file-text" aria-hidden="true"></i>
+            <span id="save-status-text">Welcome to Markdown</span>
           </div>
         </footer>
     </div>

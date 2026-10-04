@@ -42,6 +42,16 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await standaloneToggle.click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+    // Verify top-right floating reader width toggle is visible and cycles widths
+    const widthToggle = page.locator('#standalone-width-toggle');
+    await expect(widthToggle).toBeVisible();
+    await widthToggle.click();
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-width', 'wide');
+    await widthToggle.click();
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-width', 'full');
+    await widthToggle.click();
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-width', 'normal');
   });
 
   test('loads remote Markdown with light theme and standalone reader mode', async ({ page }) => {

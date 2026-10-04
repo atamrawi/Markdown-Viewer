@@ -138,7 +138,7 @@ test('private mode pauses writes without deleting existing saved documents', asy
   await waitForAppReady(page);
   await expect(page.locator('html')).toHaveAttribute('data-private-mode', 'false');
   await expect(page.locator('#save-status')).toHaveAttribute('data-state', 'saved');
-  await expect(page.locator('#save-status-text')).toHaveText('All changes saved');
+  await expect(page.locator('#save-status-text')).toHaveText(/Persisted Before Private Mode|Welcome to Markdown|Untitled/);
   await expect(page.locator('#markdown-editor')).toHaveValue(/Persisted Before Private Mode/);
   await expect(page.locator('#markdown-editor')).not.toHaveValue(/Private Content/);
 });
@@ -155,7 +155,7 @@ test('private mode resets when its tab is closed and reopened', async ({ page })
   const reopenedPage = await context.newPage();
   await openApp(reopenedPage);
   await expect(reopenedPage.locator('html')).toHaveAttribute('data-private-mode', 'false');
-  await expect(reopenedPage.locator('#save-status-text')).toHaveText('All changes saved');
+  await expect(reopenedPage.locator('#save-status-text')).toHaveText(/Welcome to Markdown|Untitled/);
 });
 
 test('legacy persisted private mode flags are cleared instead of restored', async ({ page }) => {
@@ -166,7 +166,7 @@ test('legacy persisted private mode flags are cleared instead of restored', asyn
 
   await expect(page.locator('html')).toHaveAttribute('data-private-mode', 'false');
   await expect(page.locator('#private-mode-toggle')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('#save-status-text')).toHaveText('All changes saved');
+  await expect(page.locator('#save-status-text')).toHaveText(/Welcome to Markdown|Untitled/);
   expect(await page.evaluate(() => localStorage.getItem('markdownViewerPrivateMode'))).toBeNull();
 });
 

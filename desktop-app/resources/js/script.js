@@ -58,6 +58,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     'markdownViewerSecretWorkspace'
   ]);
   let privateStorageModeEnabled = false;
+  let tabs = [];
+  let activeTabId = null;
   try {
     localStorage.removeItem(PRIVATE_MODE_KEY);
   } catch (_) {}
@@ -4450,8 +4452,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   const SECRET_WORKSPACE_ID = 'workspace_secret';
   const SIDEBAR_MIN_WIDTH = 220;
   const SIDEBAR_MAX_WIDTH = 420;
-  let tabs = [];
-  let activeTabId = null;
   let secondarySplitTabId = null;
   let secondarySplitSaveTimeout = null;
   let draggedTabId = null;
@@ -10881,13 +10881,22 @@ document.addEventListener("DOMContentLoaded", async function () {
     return true;
   }
 
+  function getCurrentDocumentTitle() {
+    if (typeof tabs !== 'undefined' && Array.isArray(tabs) && activeTabId) {
+      const tab = tabs.find(function(t) { return t.id === activeTabId; });
+      if (tab && tab.title) return tab.title;
+    }
+    return '';
+  }
+
   function updateSaveStatus(state) {
     if (!saveStatus || !saveStatusIcon || !saveStatusText) return;
     const requestedState = state === 'saving' || state === 'error' ? state : 'saved';
     const nextState = isPrivateStorageMode() && requestedState !== 'error' ? 'private' : requestedState;
+    const currentDoc = getCurrentDocumentTitle() || (tabs && tabs[0] ? tabs[0].title : '') || 'Untitled';
     const presentation = {
       saving: { icon: 'lucide lucide-refresh-cw', text: 'Saving...' },
-      saved: { icon: 'lucide lucide-check', text: 'All changes saved' },
+      saved: { icon: 'lucide lucide-file-text', text: currentDoc },
       private: { icon: 'lucide lucide-hat-glasses', text: 'Private mode is on' },
       error: { icon: 'lucide lucide-circle-alert', text: 'Changes not saved' }
     }[nextState];
@@ -10896,8 +10905,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     saveStatus.dataset.state = nextState;
     if (nextState === 'private') {
       saveStatus.title = 'Private mode is on. Session changes are not saved.';
+    } else if (nextState === 'saving') {
+      saveStatus.title = 'Saving ' + currentDoc + '…';
+    } else if (nextState === 'error') {
+      saveStatus.title = 'Changes not saved';
     } else {
-      saveStatus.removeAttribute('title');
+      saveStatus.title = 'All changes saved';
     }
     saveStatusIcon.className = presentation.icon;
     saveStatusText.textContent = presentation.text;
@@ -12213,6 +12226,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       renderLiveCursors();
     });
     renderTabBar(tabs, activeTabId);
+    updateSaveStatus('saved');
     scheduleEmbeddedImageMigrationOffer(tabId);
   }
 
@@ -24008,6 +24022,46 @@ ${selector} .arrowheadPath {
   const standaloneThemeBtn = document.getElementById("standalone-theme-toggle");
   if (standaloneThemeBtn) {
     standaloneThemeBtn.addEventListener("click", executeThemeToggle);
+  }
+
+  const standaloneWidthBtn = document.getElementById("standalone-width-toggle");
+  const standaloneWidthIcon = document.getElementById("standalone-width-icon");
+
+  function getStandaloneReaderWidth() {
+    return document.documentElement.dataset.standaloneWidth || localStorage.getItem('markdownViewerStandaloneWidth') || 'normal';
+  }
+
+  function setStandaloneReaderWidth(width) {
+    const validWidths = ['normal', 'wide', 'full'];
+    const selectedWidth = validWidths.indexOf(width) !== -1 ? width : 'normal';
+    document.documentElement.dataset.standaloneWidth = selectedWidth;
+    try {
+      localStorage.setItem('markdownViewerStandaloneWidth', selectedWidth);
+    } catch (_) {}
+    if (standaloneWidthBtn && standaloneWidthIcon) {
+      if (selectedWidth === 'normal') {
+        standaloneWidthBtn.title = 'Reading width: Normal (860px) — Click for Wide';
+        standaloneWidthBtn.setAttribute('aria-label', 'Reading width: Normal (860px)');
+        standaloneWidthIcon.className = 'lucide lucide-maximize';
+      } else if (selectedWidth === 'wide') {
+        standaloneWidthBtn.title = 'Reading width: Wide (1200px) — Click for Full width';
+        standaloneWidthBtn.setAttribute('aria-label', 'Reading width: Wide (1200px)');
+        standaloneWidthIcon.className = 'lucide lucide-maximize';
+      } else {
+        standaloneWidthBtn.title = 'Reading width: Full (100%) — Click for Normal';
+        standaloneWidthBtn.setAttribute('aria-label', 'Reading width: Full (100%)');
+        standaloneWidthIcon.className = 'lucide lucide-minimize';
+      }
+    }
+  }
+
+  if (standaloneWidthBtn) {
+    standaloneWidthBtn.addEventListener('click', function() {
+      const current = getStandaloneReaderWidth();
+      const next = current === 'normal' ? 'wide' : current === 'wide' ? 'full' : 'normal';
+      setStandaloneReaderWidth(next);
+    });
+    setStandaloneReaderWidth(getStandaloneReaderWidth());
   }
 
   async function nativeSaveMarkdown() {
