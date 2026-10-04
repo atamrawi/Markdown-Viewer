@@ -5007,6 +5007,7 @@ a:focus {
 .pdf-export .diagram-status,
 .pdf-export .diagram-toolbar,
 .pdf-export .mermaid-toolbar,
+.pdf-export .preview-image-toolbar,
 .pdf-export .abc-toolbar {
   display: none !important;
 }
@@ -5249,11 +5250,22 @@ a:focus {
    MERMAID DIAGRAM TOOLBAR
    ======================================== */
 
-.mermaid-container {
+.mermaid-container,
+.preview-image-container {
   position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.preview-image-container img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
 }
 
 .mermaid-toolbar,
+.preview-image-toolbar,
 .abc-toolbar,
 .plantuml-toolbar,
 .d2-toolbar {
@@ -5263,26 +5275,35 @@ a:focus {
   display: flex;
   gap: 4px;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateY(-2px);
   z-index: 10;
 }
 
 .mermaid-container:hover .mermaid-toolbar,
+.preview-image-container:hover .preview-image-toolbar,
+.preview-image-container:focus-within .preview-image-toolbar,
 .abc-container:hover .abc-toolbar,
 .plantuml-container:hover .plantuml-toolbar,
 .d2-container:hover .d2-toolbar,
 .graphviz-container:hover .graphviz-toolbar {
   opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .mermaid-toolbar-btn,
+.preview-image-toolbar-btn,
 .abc-toolbar-btn,
 .stl-toolbar-btn,
 .plantuml-toolbar-btn,
 .d2-toolbar-btn,
 .graphviz-toolbar-btn {
-  background-color: var(--button-bg);
-  border: 1px solid var(--border-color);
+  background-color: var(--button-bg, rgba(255, 255, 255, 0.9));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.15));
   color: var(--text-color);
   border-radius: 4px;
   padding: 4px 7px;
@@ -5296,6 +5317,7 @@ a:focus {
 }
 
 .mermaid-toolbar-btn:hover,
+.preview-image-toolbar-btn:hover,
 .abc-toolbar-btn:hover,
 .stl-toolbar-btn:hover,
 .plantuml-toolbar-btn:hover,
@@ -5306,6 +5328,7 @@ a:focus {
 }
 
 .mermaid-toolbar-btn:active,
+.preview-image-toolbar-btn:active,
 .abc-toolbar-btn:active,
 .stl-toolbar-btn:active,
 .plantuml-toolbar-btn:active,
@@ -5315,6 +5338,7 @@ a:focus {
 }
 
 .mermaid-toolbar-btn i,
+.preview-image-toolbar-btn i,
 .abc-toolbar-btn i,
 .stl-toolbar-btn i,
 .plantuml-toolbar-btn i,
@@ -13333,6 +13357,7 @@ html[data-theme="dark"] .mobile-settings-toggle.is-active .settings-switch {
   .pdf-progress-overlay,
   .diagram-toolbar,
   .mermaid-toolbar,
+  .preview-image-toolbar,
   .abc-toolbar,
   .plantuml-toolbar,
   .d2-toolbar,
@@ -14469,3 +14494,130 @@ body.release-notes-active .mobile-stats-container {
   min-height: 0;
   overflow: hidden;
 }
+
+/* ============================================
+   Standalone File Reader Mode
+   ============================================ */
+
+body.standalone-file-mode {
+  overflow: hidden;
+}
+
+body.standalone-file-mode .app-header,
+body.standalone-file-mode #document-sidebar,
+body.standalone-file-mode #document-sidebar-backdrop,
+body.standalone-file-mode #document-sidebar-resizer,
+body.standalone-file-mode #tab-bar,
+body.standalone-file-mode #markdown-format-toolbar,
+body.standalone-file-mode .markdown-format-toolbar,
+body.standalone-file-mode .editor-pane,
+body.standalone-file-mode .resize-divider,
+body.standalone-file-mode #document-outline,
+body.standalone-file-mode #review-panel,
+body.standalone-file-mode #status-bar,
+body.standalone-file-mode .mobile-header-bar,
+body.standalone-file-mode .mobile-menu-drawer,
+body.standalone-file-mode .mobile-menu-overlay,
+body.standalone-file-mode .mobile-view-mode-bar {
+  display: none !important;
+}
+
+body.standalone-file-mode .document-workspace-shell {
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100vh !important;
+}
+
+body.standalone-file-mode .document-editor-area {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+body.standalone-file-mode .content-container {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+body.standalone-file-mode .preview-pane {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  overflow-y: auto !important;
+}
+
+body.standalone-file-mode #markdown-preview {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 3.5rem 2rem 6rem 2rem;
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  body.standalone-file-mode #markdown-preview {
+    padding: 2rem 1.25rem 5rem 1.25rem;
+  }
+}
+
+.standalone-theme-toggle {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.9));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+  color: var(--text-primary, #24292f);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, border-color 0.2s ease;
+  padding: 0;
+  outline: none;
+}
+
+[data-theme="dark"] .standalone-theme-toggle {
+  background: rgba(22, 27, 34, 0.88);
+  border-color: rgba(240, 246, 252, 0.15);
+  color: #c9d1d9;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.standalone-theme-toggle:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  color: #0969da;
+  border-color: #0969da;
+}
+
+[data-theme="dark"] .standalone-theme-toggle:hover {
+  color: #58a6ff;
+  border-color: #58a6ff;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
+}
+
+.standalone-theme-toggle:active {
+  transform: translateY(0) scale(0.95);
+}
+
+.standalone-theme-toggle i {
+  font-size: 1.15rem;
+  line-height: 1;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.standalone-theme-toggle:hover i {
+  transform: rotate(20deg);
+}
+
+body.standalone-file-mode .standalone-theme-toggle {
+  display: flex !important;
+}
+

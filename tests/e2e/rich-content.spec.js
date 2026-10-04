@@ -232,3 +232,39 @@ test('resizes maps and STL previews when the preview pane changes width', async 
   await expect.poll(() => canvas.evaluate(node => node.getBoundingClientRect().width)).toBeGreaterThan(splitCanvasWidth);
   await expect.poll(() => page.evaluate(() => window.__mapInvalidationWidths.at(-1) || 0)).toBeGreaterThan(splitMapWidth);
 });
+
+test('renders hover toolbar on images and opens zoom modal', async ({ page }) => {
+  const markdown = '# Sample Document\n\n![Sample Image](assets/github.png)\n';
+  await setEditorContent(page, markdown);
+  await page.locator('.view-toolbar [data-view-mode="preview"]').click();
+
+  const previewImg = page.locator('.preview-image-container img[alt="Sample Image"]').first();
+  await expect(previewImg).toBeVisible();
+
+  const imgContainer = page.locator('.preview-image-container').first();
+  await expect(imgContainer).toBeVisible();
+
+  const toolbar = imgContainer.locator('.preview-image-toolbar');
+  await expect(toolbar).toBeAttached();
+
+  const expandBtn = toolbar.locator('button[title*="Expand image"]');
+  await expect(expandBtn).toBeAttached();
+
+  const copyBtn = toolbar.locator('button[title*="Copy image"]');
+  await expect(copyBtn).toBeAttached();
+
+  const downloadBtn = toolbar.locator('button[title*="Download image"]');
+  await expect(downloadBtn).toBeAttached();
+
+  // Test hovering and expanding image opens modal
+  await imgContainer.hover();
+  await expandBtn.click({ force: true });
+  const modal = page.locator('#mermaid-zoom-modal');
+  await expect(modal).toHaveClass(/active/);
+  await expect(page.locator('#diagram-viewer-modal-title')).toContainText('Sample Image');
+
+  // Close modal
+  await page.locator('#mermaid-modal-close').click();
+  await expect(modal).not.toHaveClass(/active/);
+});
+

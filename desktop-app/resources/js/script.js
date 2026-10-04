@@ -309,6 +309,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   let currentViewMode = 'split'; // 'editor', 'split', or 'preview'
   const shareSnapshotViewOnlyTabIds = new Set();
   const SHARE_SNAPSHOT_TAB_KIND = 'share-snapshot';
+  const REMOTE_URL_TAB_KIND = 'remote-url';
   const REVIEW_TARGET_SELECTOR = 'h1, h2, h3, h4, h5, h6, p, li, blockquote, img, video, audio, mjx-container, .frontmatter-table, .diagram-viewer, .geojson-container, .topojson-container, .stl-container';
   const REVIEW_ELEMENT_TYPES = new Set(['image', 'media', 'diagram', 'math', 'table']);
   const REVIEW_REPLY_COLLAPSE_THRESHOLD = 4;
@@ -818,6 +819,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     if (reviewModeActive) {
       return 'Comments keeps the Markdown source read only.';
+    }
+    const currentActiveTab = tabs && tabs.find ? tabs.find(t => t.id === activeTabId) : null;
+    if (currentActiveTab && currentActiveTab.kind === REMOTE_URL_TAB_KIND && isShareSnapshotViewOnlyActive()) {
+      return 'This remote Markdown document is view only.';
     }
     if (isShareSnapshotViewOnlyActive()) {
       return 'This shared snapshot is view only.';
@@ -2177,12 +2182,21 @@ document.addEventListener("DOMContentLoaded", async function () {
     openStorageImportConfirm(input);
   }
 
-  // Check dark mode preference first for proper initialization
+  // Check dark mode preference and URL query parameter for proper initialization
+  const initialUrlSearchParams = new URLSearchParams(window.location.search);
+  const initialUrlHash = window.location.hash || '';
+  const initialHashParamString = initialUrlHash.includes('?')
+    ? initialUrlHash.slice(initialUrlHash.indexOf('?') + 1)
+    : (initialUrlHash.startsWith('#') && !initialUrlHash.startsWith('#share=') && !initialUrlHash.startsWith('#live=') && !initialUrlHash.startsWith('#id=') ? initialUrlHash.slice(1) : '');
+  const initialHashParams = new URLSearchParams(initialHashParamString);
+  const urlThemeParam = initialUrlSearchParams.get('theme') || initialHashParams.get('theme');
+  const normalizedUrlTheme = (urlThemeParam === 'dark' || urlThemeParam === 'light') ? urlThemeParam : null;
+
   const prefersDarkMode =
     window.matchMedia &&
     window.matchMedia("(prefers-color-scheme: dark)").matches;
   const savedTheme = loadGlobalState().theme;
-  const initialTheme = savedTheme ?? (prefersDarkMode ? "dark" : "light");
+  const initialTheme = normalizedUrlTheme || (savedTheme ?? (prefersDarkMode ? "dark" : "light"));
 
   document.documentElement.setAttribute("data-theme", initialTheme);
 
@@ -2207,6 +2221,13 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (mobileThemeIcon) mobileThemeIcon.className = 'lucide lucide-' + themeIconName;
       if (mobileThemeSwitchIcon) mobileThemeSwitchIcon.className = 'lucide lucide-' + themeIconName + ' settings-switch-icon';
       if (mobileThemeStatus) mobileThemeStatus.textContent = darkModeEnabled ? 'Dark mode' : 'Light mode';
+    }
+    const standaloneToggle = document.getElementById('standalone-theme-toggle');
+    const standaloneIcon = document.getElementById('standalone-theme-icon');
+    if (standaloneToggle) {
+      standaloneToggle.setAttribute('title', darkModeEnabled ? 'Switch to light theme' : 'Switch to dark theme');
+      standaloneToggle.setAttribute('aria-label', darkModeEnabled ? 'Switch to light theme' : 'Switch to dark theme');
+      if (standaloneIcon) standaloneIcon.className = 'lucide lucide-' + (darkModeEnabled ? 'sun' : 'moon');
     }
   }
 
@@ -3309,6 +3330,89 @@ document.addEventListener("DOMContentLoaded", async function () {
       } else {
         firstParagraph.remove();
       }
+    });
+  }
+
+  function enhancePreviewImages(container) {
+    if (!container) return;
+    const images = container.querySelectorAll("img");
+    images.forEach(img => {
+      // Skip if inside emoji, icon, diagram, logo, modal, or already wrapped
+      if (
+        img.classList.contains("joypixel") ||
+        img.classList.contains("emoji") ||
+        img.classList.contains("app-brand-icon") ||
+        img.closest(".joypixel") ||
+        img.closest(".diagram-viewer") ||
+        img.closest(".mermaid-container") ||
+        img.closest(".preview-image-container") ||
+        img.closest(".app-brand") ||
+        img.closest(".toast") ||
+        img.closest(".modal") ||
+        img.closest("button")
+      ) {
+        return;
+      }
+
+      // Create container
+      const wrapper = document.createElement("div");
+      wrapper.className = "preview-image-container";
+
+      // Insert wrapper before img and move img inside
+      if (img.parentNode) {
+        img.parentNode.insertBefore(wrapper, img);
+        wrapper.appendChild(img);
+      }
+
+      // Create hover toolbar
+      const toolbar = document.createElement("div");
+      toolbar.className = "preview-image-toolbar";
+      toolbar.setAttribute("role", "toolbar");
+      toolbar.setAttribute("aria-label", "Image actions");
+
+      const actions = [
+        {
+          title: "Expand image (Fullscreen viewer)",
+          ariaLabel: "Expand image in fullscreen viewer",
+          html: '<i class="lucide lucide-maximize"></i>',
+          onClick: () => openImageZoomModal(img)
+        },
+        {
+          title: "Copy image",
+          ariaLabel: "Copy image to clipboard",
+          html: '<i class="lucide lucide-copy"></i> Copy',
+          onClick: btn => copyImageToClipboard(img, btn)
+        },
+        {
+          title: "Download image",
+          ariaLabel: "Download image file",
+          html: '<i class="lucide lucide-download"></i> Download',
+          onClick: btn => downloadImageFile(img, btn)
+        },
+        {
+          title: "Open original image in new tab",
+          ariaLabel: "Open original image in new tab",
+          html: '<i class="lucide lucide-external-link"></i>',
+          onClick: () => window.open(img.src, "_blank", "noopener,noreferrer")
+        }
+      ];
+
+      actions.forEach(action => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "preview-image-toolbar-btn";
+        btn.title = action.title;
+        btn.setAttribute("aria-label", action.ariaLabel || action.title);
+        btn.innerHTML = action.html;
+        btn.addEventListener("click", e => {
+          e.preventDefault();
+          e.stopPropagation();
+          action.onClick(btn);
+        });
+        toolbar.appendChild(btn);
+      });
+
+      wrapper.appendChild(toolbar);
     });
   }
 
@@ -14650,6 +14754,7 @@ ${selector} .arrowheadPath {
       processEmojis(root);
       enhancePreviewCodeBlocks(root);
       enhanceGitHubAlerts(root);
+      enhancePreviewImages(root);
     });
 
     enhanceReleaseNotesPreview();
@@ -24012,7 +24117,8 @@ ${selector} .arrowheadPath {
       }
     });
   }
-  themeToggle.addEventListener("click", function () {
+
+  function executeThemeToggle() {
     _lastRenderedContent = null;
     const theme =
       document.documentElement.getAttribute("data-theme") === "dark"
@@ -24057,7 +24163,16 @@ ${selector} .arrowheadPath {
 
     updateMapThemes();
     updateStlThemes();
-  });
+  }
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", executeThemeToggle);
+  }
+
+  const standaloneThemeBtn = document.getElementById("standalone-theme-toggle");
+  if (standaloneThemeBtn) {
+    standaloneThemeBtn.addEventListener("click", executeThemeToggle);
+  }
 
   async function nativeSaveMarkdown() {
     try {
@@ -24388,7 +24503,7 @@ ${selector} .arrowheadPath {
       tempContainer.innerHTML = sanitizedHtml;
       applyReferencePreviewLinks(tempContainer, referenceData.definitions);
       enhanceGitHubAlerts(tempContainer);
-      tempContainer.querySelectorAll('.diagram-status, .diagram-toolbar, .mermaid-toolbar, .abc-toolbar').forEach(function(el) {
+      tempContainer.querySelectorAll('.diagram-status, .diagram-toolbar, .mermaid-toolbar, .preview-image-toolbar, .abc-toolbar').forEach(function(el) {
         el.remove();
       });
       tempContainer.querySelectorAll('.diagram-viewer.is-loading, .mermaid-container.is-loading, .abc-container.is-loading').forEach(function(el) {
@@ -24698,6 +24813,7 @@ ${selector} .arrowheadPath {
       .diagram-status,
       .diagram-toolbar,
       .mermaid-toolbar,
+      .preview-image-toolbar,
       .abc-toolbar {
           display: none !important;
       }
@@ -25848,7 +25964,7 @@ ${selector} .arrowheadPath {
 
   function removeExportOnlyControls(root) {
     root.querySelectorAll(
-      '.diagram-status, .diagram-toolbar, .mermaid-toolbar, .abc-toolbar, ' +
+      '.diagram-status, .diagram-toolbar, .mermaid-toolbar, .preview-image-toolbar, .abc-toolbar, ' +
       '.plantuml-toolbar, .d2-toolbar, .graphviz-toolbar, .stl-toolbar, .review-target-actions'
     ).forEach(element => element.remove());
     root.querySelectorAll('.is-loading').forEach(element => element.classList.remove('is-loading'));
@@ -26055,7 +26171,7 @@ ${selector} .arrowheadPath {
       const tempElement = await createExportRenderElement(markdown, selectedTheme, 'pdf', progressState);
       await waitForPdfFrame(progressState);
 
-      tempElement.querySelectorAll('.diagram-status, .diagram-toolbar, .mermaid-toolbar, .abc-toolbar').forEach(el => el.remove());
+      tempElement.querySelectorAll('.diagram-status, .diagram-toolbar, .mermaid-toolbar, .preview-image-toolbar, .abc-toolbar').forEach(el => el.remove());
       await waitForPdfFrame(progressState);
       fitExportElementToContent(tempElement);
       await waitForPdfFrame(progressState);
@@ -26254,7 +26370,7 @@ ${selector} .arrowheadPath {
       const tempElement = await createExportRenderElement(markdown, exportTheme, 'image', progressState);
       await waitForPdfFrame(progressState);
 
-      tempElement.querySelectorAll('.diagram-status, .diagram-toolbar, .mermaid-toolbar, .abc-toolbar').forEach(el => el.remove());
+      tempElement.querySelectorAll('.diagram-status, .diagram-toolbar, .mermaid-toolbar, .preview-image-toolbar, .abc-toolbar').forEach(el => el.remove());
       await waitForPdfFrame(progressState);
       fitExportElementToContent(tempElement);
       await waitForPdfFrame(progressState);
@@ -26426,6 +26542,38 @@ ${selector} .arrowheadPath {
     saveCurrentTabState();
     renderTabBar(tabs, activeTabId);
     return true;
+  }
+
+  async function openRemoteUrlTab(content, title, mode, options) {
+    const isReadOnly = (options && options.readOnly !== undefined) ? options.readOnly : true;
+    const shareMode = isReadOnly ? 'view' : 'edit';
+    const viewMode = mode || (isReadOnly ? 'preview' : 'split');
+    const remoteTab = createTab(typeof content === 'string' ? content : '', getSafeShareSnapshotTitle(title || 'Remote Document'), viewMode);
+    remoteTab.kind = REMOTE_URL_TAB_KIND;
+    remoteTab.temporary = true;
+    remoteTab.sourceUrl = options && options.sourceUrl ? options.sourceUrl : '';
+    remoteTab.shareSnapshotMode = shareMode;
+
+    // Filter out initial welcome tab, empty untitled tabs, and release-notes tabs so ONLY the requested remote file is present
+    tabs = tabs.filter(t => {
+      if (isReleaseNotesTab(t)) return false;
+      if (t.title === 'Welcome to Markdown' || (t.title === 'Untitled' && !t.content.trim())) return false;
+      return true;
+    });
+
+    if (!tabs.some(t => t.id === remoteTab.id)) {
+      tabs.push(remoteTab);
+    }
+
+    await switchTab(remoteTab.id);
+    if (isReadOnly) {
+      shareSnapshotViewOnlyTabIds.add(remoteTab.id);
+      applyShareSnapshotAccessMode('view');
+    }
+    setViewMode(viewMode);
+    saveCurrentTabState();
+    renderTabBar(tabs, activeTabId);
+    return remoteTab;
   }
 
   function getShareHashForMode(id, mode) {
@@ -29007,8 +29155,187 @@ ${selector} .arrowheadPath {
     }
   }
 
+  function resolveMarkdownUrlInfo(input) {
+    const rawInput = (input || '').trim();
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(rawInput);
+    } catch (_) {
+      throw new Error('Invalid URL provided.');
+    }
+
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      throw new Error('Only HTTP/HTTPS URLs are supported.');
+    }
+
+    const host = parsedUrl.hostname.replace(/^www\./, '').toLowerCase();
+    const segments = parsedUrl.pathname.split('/').filter(Boolean);
+
+    // GitHub blob URL: github.com/:owner/:repo/blob/:ref/...path
+    if (host === 'github.com' && segments.length >= 4 && segments[2] === 'blob') {
+      const owner = segments[0];
+      const repo = segments[1].replace(/\.git$/i, '');
+      const ref = segments[3];
+      const filePathSegments = segments.slice(4);
+      const filePath = filePathSegments.map(decodeURIComponent).join('/');
+      const fileName = decodeURIComponent(filePathSegments[filePathSegments.length - 1] || `${repo}.md`);
+      return {
+        owner,
+        repo,
+        ref,
+        filePath,
+        title: fileName,
+        rawUrl: `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(ref)}/${filePathSegments.map(encodeURIComponent).join('/')}`,
+        apiUrl: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${filePathSegments.map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`
+      };
+    }
+
+    // GitHub raw URL: raw.githubusercontent.com/:owner/:repo/:ref/...path
+    if (host === 'raw.githubusercontent.com' && segments.length >= 3) {
+      const owner = segments[0];
+      const repo = segments[1].replace(/\.git$/i, '');
+      const ref = segments[2];
+      const filePathSegments = segments.slice(3);
+      const filePath = filePathSegments.map(decodeURIComponent).join('/');
+      const fileName = decodeURIComponent(filePathSegments[filePathSegments.length - 1] || `${repo}.md`);
+      return {
+        owner,
+        repo,
+        ref,
+        filePath,
+        title: fileName,
+        rawUrl: rawInput,
+        apiUrl: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${filePathSegments.map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`
+      };
+    }
+
+    // GitHub Gist: gist.github.com/:user/:gistId
+    if (host === 'gist.github.com' && segments.length >= 2) {
+      const gistId = segments[1];
+      return {
+        gistId,
+        title: `Gist ${gistId}`,
+        rawUrl: null,
+        apiUrl: `https://api.github.com/gists/${encodeURIComponent(gistId)}`
+      };
+    }
+
+    // Generic / raw URL
+    const lastSegment = segments[segments.length - 1] || 'Document.md';
+    return {
+      title: decodeURIComponent(lastSegment),
+      rawUrl: rawInput,
+      apiUrl: null
+    };
+  }
+
+  async function fetchRemoteMarkdownText(info) {
+    if (info.rawUrl) {
+      try {
+        const res = await fetch(info.rawUrl, { method: 'GET', cache: 'no-cache' });
+        if (res.ok) {
+          return await res.text();
+        }
+        if (!info.apiUrl) {
+          throw new Error(`Failed to load file (${res.status} ${res.statusText})`);
+        }
+      } catch (err) {
+        if (!info.apiUrl) {
+          throw new Error(`Failed to fetch Markdown from URL: ${err.message}`);
+        }
+      }
+    }
+
+    if (info.apiUrl) {
+      const headers = { 'Accept': 'application/vnd.github.raw+json, application/vnd.github.v3+json' };
+      const token = typeof getGitHubAccessToken === 'function' ? getGitHubAccessToken() : null;
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const apiRes = await fetch(info.apiUrl, { headers });
+      if (!apiRes.ok) {
+        throw new Error(`GitHub API request failed (${apiRes.status} ${apiRes.statusText})`);
+      }
+      const contentType = apiRes.headers.get('content-type') || '';
+      if (contentType.includes('json')) {
+        const json = await apiRes.json();
+        if (json && json.files && typeof json.files === 'object') {
+          const mdKey = Object.keys(json.files).find(k => k.toLowerCase().endsWith('.md') || k.toLowerCase().endsWith('.markdown')) || Object.keys(json.files)[0];
+          if (mdKey && json.files[mdKey]) {
+            if (info.title.startsWith('Gist ')) info.title = mdKey;
+            return json.files[mdKey].content || (json.files[mdKey].raw_url ? await (await fetch(json.files[mdKey].raw_url)).text() : '');
+          }
+        }
+        if (json && typeof json.content === 'string' && json.encoding === 'base64') {
+          const binary = atob(json.content.replace(/\n/g, ''));
+          const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+          return new TextDecoder('utf-8').decode(bytes);
+        } else if (typeof json === 'string') {
+          return json;
+        }
+      }
+      return await apiRes.text();
+    }
+
+    throw new Error('Unable to fetch Markdown content.');
+  }
+
+  async function loadFromUrlParameters() {
+    const searchParams = new URLSearchParams(window.location.search);
+    const hash = window.location.hash || '';
+    let hashParams = new URLSearchParams();
+    if (hash.includes('?')) {
+      hashParams = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
+    } else if (hash.startsWith('#url=') || hash.startsWith('#file=') || hash.startsWith('#src=') || hash.startsWith('#md=')) {
+      hashParams = new URLSearchParams(hash.slice(1));
+    }
+
+    const fileUrl = searchParams.get('url') || searchParams.get('file') || searchParams.get('src') || searchParams.get('md')
+      || hashParams.get('url') || hashParams.get('file') || hashParams.get('src') || hashParams.get('md');
+
+    if (!fileUrl) return false;
+
+    const requestedMode = searchParams.get('mode') || hashParams.get('mode') || 'preview';
+    const isReadOnly = searchParams.get('readonly') !== '0' && searchParams.get('readonly') !== 'false' && hashParams.get('readonly') !== '0' && hashParams.get('readonly') !== 'false';
+    const isFullscreen = ['1', 'true', 'yes'].includes((searchParams.get('fullscreen') || searchParams.get('fs') || hashParams.get('fullscreen') || hashParams.get('fs') || '').toLowerCase());
+
+    showAppToast('Loading remote Markdown document…', { tone: 'info', title: 'Opening file' });
+
+    try {
+      const resolved = resolveMarkdownUrlInfo(fileUrl);
+      const markdownContent = await fetchRemoteMarkdownText(resolved);
+      const docTitle = resolved.title || 'Remote Document';
+
+      const tabMode = requestedMode === 'editor' ? 'editor' : requestedMode === 'split' ? 'split' : 'preview';
+
+      await openRemoteUrlTab(markdownContent, docTitle, tabMode, {
+        readOnly: isReadOnly,
+        sourceUrl: fileUrl
+      });
+
+      // Activate standalone file viewer mode (hides header, toolbars, sidebar, tabs for a distraction-free reader view)
+      document.body.classList.add('standalone-file-mode');
+      document.documentElement.dataset.standaloneMode = 'true';
+
+      // Always collapse the Explorer side panel for standalone viewing of the requested file
+      if (documentOrganization) {
+        documentOrganization.ui.collapsed = true;
+        updateDocumentSidebarVisibility();
+      }
+
+      showAppToast(`Loaded ${docTitle}`, { tone: 'success', title: 'Ready' });
+      return true;
+    } catch (error) {
+      console.error('Failed to load remote Markdown file:', error);
+      showAppToast(error && error.message ? error.message : 'Failed to fetch remote Markdown file.', {
+        tone: 'error',
+        title: 'Error loading URL'
+      });
+      return false;
+    }
+  }
+
   loadFromShareHash();
   loadFromLiveHash();
+  loadFromUrlParameters();
 
   // Document-wide drag-and-drop: track nesting level for reliable enter/leave detection
   let dragDepth = 0;
@@ -29791,7 +30118,7 @@ ${selector} .arrowheadPath {
     modalCurrentSvgEl = svgClone;
 
     const engine = container.getAttribute('data-diagram-engine') || 'diagram';
-    const title = document.getElementById('diagram-modal-title');
+    const title = document.getElementById('diagram-viewer-modal-title') || document.getElementById('diagram-modal-title');
     if (title) title.textContent = `${getDiagramEngineLabel(engine)} Viewer`;
     mermaidZoomModal.classList.add('active');
     mermaidZoomModal.setAttribute('aria-hidden', 'false');
@@ -29808,6 +30135,102 @@ ${selector} .arrowheadPath {
     modalPanX = 0;
     modalPanY = 0;
     applyModalTransform();
+  }
+
+  function openImageZoomModal(imgEl) {
+    if (!imgEl) return;
+    mermaidModalDiagram.textContent = "";
+    modalZoomScale = 1;
+    modalPanX = 0;
+    modalPanY = 0;
+
+    const imgClone = document.createElement("img");
+    imgClone.src = imgEl.src;
+    imgClone.alt = imgEl.alt || "Image";
+    const intrinsicWidth = imgEl.naturalWidth || imgEl.getBoundingClientRect().width || 600;
+    const intrinsicHeight = imgEl.naturalHeight || imgEl.getBoundingClientRect().height || 400;
+
+    imgClone.style.width = `${intrinsicWidth}px`;
+    imgClone.style.height = `${intrinsicHeight}px`;
+    imgClone.style.maxWidth = "none";
+    imgClone.style.maxHeight = "none";
+    imgClone.style.transformOrigin = "center";
+    imgClone.style.objectFit = "contain";
+    imgClone.dataset.intrinsicWidth = String(intrinsicWidth);
+    imgClone.dataset.intrinsicHeight = String(intrinsicHeight);
+
+    mermaidModalDiagram.style.backgroundColor = "rgba(0, 0, 0, 0.4)";
+    mermaidModalDiagram.appendChild(imgClone);
+    modalCurrentSvgEl = imgClone;
+
+    const title = document.getElementById("diagram-viewer-modal-title") || document.getElementById("diagram-modal-title");
+    if (title) title.textContent = imgEl.alt ? `Image Viewer — ${imgEl.alt}` : "Image Viewer";
+
+    mermaidZoomModal.classList.add("active");
+    mermaidZoomModal.setAttribute("aria-hidden", "false");
+    requestAnimationFrame(fitModalDiagram);
+  }
+
+  async function copyImageToClipboard(imgEl, button) {
+    const originalHtml = button.innerHTML;
+    button.innerHTML = '<i class="lucide lucide-loader-2"></i>';
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = imgEl.src;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(async blob => {
+        if (blob && navigator.clipboard && navigator.clipboard.write) {
+          try {
+            await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+            button.innerHTML = '<i class="lucide lucide-check"></i> Copied!';
+            setTimeout(() => { button.innerHTML = originalHtml; }, 2000);
+            return;
+          } catch (_) {}
+        }
+        await navigator.clipboard.writeText(imgEl.src);
+        button.innerHTML = '<i class="lucide lucide-check"></i> Copied!';
+        setTimeout(() => { button.innerHTML = originalHtml; }, 2000);
+      });
+    } catch (_) {
+      try {
+        await navigator.clipboard.writeText(imgEl.src);
+        button.innerHTML = '<i class="lucide lucide-check"></i> Copied!';
+        setTimeout(() => { button.innerHTML = originalHtml; }, 2000);
+      } catch (_) {
+        button.innerHTML = '<i class="lucide lucide-x"></i> Failed';
+        setTimeout(() => { button.innerHTML = originalHtml; }, 2000);
+      }
+    }
+  }
+
+  function downloadImageFile(imgEl, button) {
+    const src = imgEl.src;
+    let fileName = "image.png";
+    try {
+      const parsed = new URL(src, window.location.href);
+      const segs = parsed.pathname.split("/").filter(Boolean);
+      if (segs.length) {
+        fileName = decodeURIComponent(segs[segs.length - 1]) || "image.png";
+      }
+    } catch (_) {}
+
+    const a = document.createElement("a");
+    a.href = src;
+    a.download = fileName;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 
   // Modal close button
@@ -31773,8 +32196,23 @@ ${selector} .arrowheadPath {
     });
   }
 
+  function hasRemoteUrlParameter() {
+    const searchParams = new URLSearchParams(window.location.search);
+    const hash = window.location.hash || '';
+    let hashParams = new URLSearchParams();
+    if (hash.includes('?')) {
+      hashParams = new URLSearchParams(hash.slice(hash.indexOf('?') + 1));
+    } else if (hash.startsWith('#url=') || hash.startsWith('#file=') || hash.startsWith('#src=') || hash.startsWith('#md=')) {
+      hashParams = new URLSearchParams(hash.slice(1));
+    }
+    return Boolean(
+      searchParams.get('url') || searchParams.get('file') || searchParams.get('src') || searchParams.get('md') ||
+      hashParams.get('url') || hashParams.get('file') || hashParams.get('src') || hashParams.get('md')
+    );
+  }
+
   // Wait until all editor and collaboration dependencies exist before adding the update tab.
-  if (releaseNotesLaunch.shouldOpen) {
+  if (releaseNotesLaunch.shouldOpen && !hasRemoteUrlParameter()) {
     await openReleaseNotes({
       activate: releaseNotesLaunch.activate
     });
