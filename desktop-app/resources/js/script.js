@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   let remoteUrlLoaded = false;
   window.alert = function(message) { showAppToast(message); };
   const PRIVATE_MODE_KEY = 'markdownViewerPrivateMode';
-  const APP_VERSION = '3.10.3';
+  const APP_VERSION = '3.10.4';
   const RELEASE_NOTES_TAB_KIND = 'release-notes';
   const RELEASE_NOTES_LAST_VERSION_KEY = 'markdownViewerLastVersion';
   const RELEASE_NOTES_PENDING_VERSION_KEY = 'markdownViewerPendingReleaseNotesVersion';
@@ -150,6 +150,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   // PERF-002: Lazy script loader for optional heavy libraries
   const CDN_INTEGRITY = Object.freeze({
     'https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.min.js': 'sha384-yQ4mmBBT+vhTAwjFH0toJXNYJ6O4usWnt6EPIdWwrRvx2V/n5lXuDZQwQFeSFydF',
+    'https://cdn.jsdelivr.net/npm/mathjax@4.0.0-beta.7/tex-mml-chtml.js': 'sha384-2f5bAKjuFIbbQ+0O9aSu5W1OyLA4q80QrDEvjXDwJexjU9VqoJhMgw19pYVpSJab',
     'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js': 'sha384-M5jmNxKC9EVnuqeMwRHvFuYUE8Hhp0TgBruj/GZRkYtiMrCRgH7yvv5KY+Owi7TW',
     'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js': 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk',
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js': 'sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H',
@@ -227,7 +228,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   // CDN URLs for lazy-loaded libraries
   const CDN = {
     mermaid: 'https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.min.js',
-    mathjax: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js',
+    mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@4.0.0-beta.7/tex-mml-chtml.js',
     jspdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
     html2canvas: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
     pako: 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',
@@ -250,7 +251,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Resolve local paths for desktop (Neutralinojs) offline support
   if (typeof Neutralino !== 'undefined') {
     CDN.mermaid = '/libs/mermaid.min.js';
-    CDN.mathjax = '/libs/tex-mml-chtml.min.js';
+    CDN.mathjax = '/libs/tex-mml-chtml.js';
     CDN.jspdf = '/libs/jspdf.umd.min.js';
     CDN.html2canvas = '/libs/html2canvas.min.js';
     CDN.pako = '/libs/pako.min.js';
@@ -336,6 +337,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   let isPreviewScrolling = false;
   let isProgrammaticScrolling = false;
   let scrollSyncTimeout = null;
+  let scrollSyncReleaseTimeout = null;
+  const synchronizedScrollPositions = new WeakMap();
   let documentSplitSyncFrame = null;
   let documentSplitScrollSource = null;
   let documentSplitSyncReleaseTimeout = null;
@@ -482,6 +485,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const pngExportThemeDark = document.getElementById("png-export-theme-dark");
   const exportPng = document.getElementById("export-png");
   const copyMarkdownButton = document.getElementById("copy-markdown-button");
+  let copyMarkdownFeedback = null;
   const dragOverlay = document.getElementById("drag-overlay");
   const toggleSyncButton = document.getElementById("toggle-sync");
   const editorPane = document.getElementById("markdown-editor");
@@ -861,8 +865,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
-  function blockShareSnapshotSourceAccess() {
-    if (!isShareSnapshotViewOnlyActive()) return false;
+  function blockShareSnapshotSourceAccess(tabId = activeTabId) {
+    if (!shareSnapshotViewOnlyTabIds.has(tabId)) return false;
     alert('This shared snapshot is view only. The Markdown source cannot be downloaded or copied.');
     announceToScreenReader('This shared snapshot is view only.');
     return true;
@@ -1029,6 +1033,17 @@ document.addEventListener("DOMContentLoaded", async function () {
   const aboutVersion = document.getElementById("about-version");
   const aboutReleaseNotes = document.getElementById("about-release-notes");
   const privateModeToggle = document.getElementById("private-mode-toggle");
+  const menuVisualSettingsButton = document.getElementById("menu-visual-settings-button");
+  const mobileVisualSettingsButton = document.getElementById("mobile-visual-settings-button");
+  const visualSettingsModal = document.getElementById("visual-settings-modal");
+  const visualSettingsCloseBtn = document.getElementById("visual-settings-close-btn");
+  const visualSettingsCloseIcon = document.getElementById("visual-settings-close-icon");
+  const visualSettingsResetBtn = document.getElementById("visual-settings-reset-btn");
+  const selectHljsTheme = document.getElementById("visual-setting-hljs-theme");
+  const selectMathFont = document.getElementById("visual-setting-math-font");
+  const selectMermaidTheme = document.getElementById("visual-setting-mermaid-theme");
+  const selectMermaidLook = document.getElementById("visual-setting-mermaid-look");
+  const selectEmojiSkinTone = document.getElementById("visual-setting-emoji-skin-tone");
   const storageSettingsButton = document.getElementById("storage-settings-button");
   const trashSettingsButton = document.getElementById("trash-settings-button");
   const storageSettingsModal = document.getElementById("storage-settings-modal");
@@ -1099,8 +1114,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   let emojiUrlMap = new Map();
   let emojiLookupLoaded = false;
   let emojiRenderScheduled = false;
-  let emojiItems = [];
-  const emojiSelection = new Set();
+  let emojiCatalogPromise = null;
   let symbolItems = [];
   const symbolSelection = new Set();
   const SYMBOL_SECTIONS = [
@@ -2347,22 +2361,28 @@ document.addEventListener("DOMContentLoaded", async function () {
   applyDirectionToContent(initialDirection);
   updateDirectionToggleUI(initialDirection);
 
-  // Track last Mermaid theme to avoid redundant re-initialization (PERF-005)
+  // Track last Mermaid theme and look to avoid redundant re-initialization (PERF-005)
   let _lastMermaidTheme = null;
   let _mermaidThemeReinitTimeout = null;
   let _themeTransitionTimeout = null;
   const initMermaid = (forceReinit, themeOverride) => {
     if (typeof mermaid === 'undefined') return; // PERF-002: Not loaded yet
     const currentTheme = themeOverride || document.documentElement.getAttribute("data-theme");
-    const mermaidTheme = currentTheme === "dark" ? "dark" : "default";
+    const config = window.visualSettingsAdapters
+      ? window.visualSettingsAdapters.getMermaidConfig(currentTheme)
+      : { theme: currentTheme === "dark" ? "dark" : "default", look: "classic" };
+    const mermaidTheme = config.theme;
+    const mermaidLook = config.look || "classic";
     
-    // Skip re-initialization if theme hasn't changed (PERF-005)
-    if (!forceReinit && _lastMermaidTheme === mermaidTheme) return;
-    _lastMermaidTheme = mermaidTheme;
+    // Skip re-initialization if theme & look haven't changed (PERF-005)
+    const configKey = `${mermaidTheme}:${mermaidLook}`;
+    if (!forceReinit && _lastMermaidTheme === configKey) return;
+    _lastMermaidTheme = configKey;
     
     mermaid.initialize({
       startOnLoad: false,
       theme: mermaidTheme,
+      look: mermaidLook,
       securityLevel: 'strict',
       flowchart: { useMaxWidth: true, htmlLabels: true },
       fontSize: 16,
@@ -4342,14 +4362,20 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function configureMathJax() {
-    if (window.MathJax && typeof MathJax.typesetPromise === 'function') return;
-    if (window.MathJax && MathJax.loader && MathJax.tex) return;
+    // A partially initialized runtime keeps its configuration under config.
+    // Never replace it while an edit or another preview requests math.
+    if (window.MathJax && (MathJax._ || typeof MathJax.typesetPromise === 'function')) return;
     window.MathJax = {
       startup: {
         typeset: false
       },
       options: {
         a11y: { inTabOrder: false }
+      },
+      output: {
+        // The combined bundle includes Modern. Load optional fonts only after
+        // startup so an unavailable font cannot leave startup.promise pending.
+        font: 'mathjax-modern'
       },
       tex: {
         inlineMath: [['$', '$'], ['\\(', '\\)']],
@@ -4360,6 +4386,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function ensureMathJaxReady() {
+    if (mathJaxLoadPromise) return mathJaxLoadPromise;
     if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
       return MathJax.startup && MathJax.startup.promise
         ? MathJax.startup.promise
@@ -4367,31 +4394,38 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     configureMathJax();
-    if (!mathJaxLoadPromise) {
-      mathJaxLoadPromise = loadScript(CDN.mathjax)
-        .then(function() {
-          return MathJax.startup && MathJax.startup.promise
-            ? MathJax.startup.promise
-            : Promise.resolve();
-        })
-        .then(function() {
-          if (!window.MathJax || typeof MathJax.typesetPromise !== 'function') {
-            throw new Error('MathJax typesetPromise API is unavailable.');
+    mathJaxLoadPromise = loadScript(CDN.mathjax)
+      .then(function() {
+        return MathJax.startup && MathJax.startup.promise
+          ? MathJax.startup.promise
+          : Promise.resolve();
+      })
+      .then(function() {
+        if (!window.MathJax || typeof MathJax.typesetPromise !== 'function') {
+          throw new Error('MathJax typesetPromise API is unavailable.');
+        }
+        // Keep math usable in Modern while the saved font downloads. The
+        // adapter rerenders when the latest selection is ready or falls back.
+        if (window.visualSettingsAdapters) {
+          window.visualSettingsAdapters.applyMathFont(
+            window.visualSettingsAdapters.getCurrentMathFont()
+          ).catch(function(error) {
+            console.warn('Failed to apply MathJax font:', error);
+          });
+        }
+      })
+      .catch(function(error) {
+        mathJaxLoadPromise = null;
+        _loadedScripts.delete(CDN.mathjax);
+        if (window.MathJax && typeof MathJax.typesetPromise !== 'function') {
+          try {
+            delete window.MathJax;
+          } catch (_) {
+            window.MathJax = undefined;
           }
-        })
-        .catch(function(error) {
-          mathJaxLoadPromise = null;
-          _loadedScripts.delete(CDN.mathjax);
-          if (window.MathJax && typeof MathJax.typesetPromise !== 'function') {
-            try {
-              delete window.MathJax;
-            } catch (_) {
-              window.MathJax = undefined;
-            }
-          }
-          throw error;
-        });
-    }
+        }
+        throw error;
+      });
     return mathJaxLoadPromise;
   }
 
@@ -4453,6 +4487,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const SIDEBAR_MIN_WIDTH = 220;
   const SIDEBAR_MAX_WIDTH = 420;
   let secondarySplitTabId = null;
+  let lastFocusedDocumentTabId = null;
   let secondarySplitSaveTimeout = null;
   let draggedTabId = null;
   let saveTabStateTimeout = null;
@@ -5948,7 +5983,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function removeDocumentSidebarMenus() {
-    document.querySelectorAll('.document-menu-dropdown').forEach(function(menu) { menu.remove(); });
+    // Autosave refreshes the Explorer while a document selection menu may be in use.
+    document.querySelectorAll('.document-menu-dropdown:not(.document-surface-menu)').forEach(function(menu) { menu.remove(); });
   }
 
   function closeDocumentSidebarMenus() {
@@ -6024,7 +6060,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       actionButton.addEventListener('click', function(event) {
         event.preventDefault();
         event.stopPropagation();
-        closeDocumentSidebarMenus();
+        if (!action.keepOpen) closeDocumentSidebarMenus();
         if (!actionButton.disabled) action.run();
       });
       menu.appendChild(actionButton);
@@ -6302,6 +6338,291 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
 
+  function openDocumentTreeBackgroundContextMenu(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    clearDocumentTreeSelection({ announce: false });
+    const location = getPreferredDocumentLocation();
+    const actions = [
+      {
+        id: 'new-document',
+        icon: 'lucide-file-text',
+        label: 'New file',
+        run: function() { newTab('', null, location); }
+      },
+      {
+        id: 'new-folder',
+        icon: 'lucide-folder-plus',
+        label: 'New folder',
+        run: function() { createFolder(location.workspaceId); }
+      }
+    ];
+    const tree = document.getElementById('document-tree');
+    const virtualButton = createDocumentMenuButton('Explorer', actions);
+    const rect = tree ? tree.getBoundingClientRect() : { left: 8, top: 8, right: 220, bottom: 120 };
+    const position = event && Number.isFinite(event.clientX) && (event.clientX || event.clientY)
+      ? { x: event.clientX, y: event.clientY }
+      : { x: Math.min(rect.left + 24, window.innerWidth - 8), y: Math.min(rect.top + 24, window.innerHeight - 8) };
+    openDocumentMenu(virtualButton, virtualButton._documentMenu, position, tree);
+  }
+
+  function getContextMenuPosition(event, fallbackElement) {
+    const point = event && ((event.changedTouches && event.changedTouches[0]) || event);
+    if (point && Number.isFinite(point.clientX) && (point.clientX || point.clientY)) {
+      return { x: point.clientX, y: point.clientY };
+    }
+    const rect = fallbackElement && typeof fallbackElement.getBoundingClientRect === 'function'
+      ? fallbackElement.getBoundingClientRect()
+      : { left: 8, top: 8 };
+    return {
+      x: Math.min(rect.left + 24, window.innerWidth - 8),
+      y: Math.min(rect.top + 24, window.innerHeight - 8)
+    };
+  }
+
+  function openQuickStartContextMenu(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const actions = [
+      { id: 'open-explorer', icon: 'lucide-panel-left-open', label: 'Open Explorer', run: function() { noOpenDocumentExplorer.click(); } },
+      { id: 'new-document', icon: 'lucide-file-plus-2', label: 'New document', run: function() { noOpenDocumentNew.click(); } },
+      { id: 'open-device', icon: 'lucide-upload', label: 'Open from device', run: function() { noOpenDocumentOpenFile.click(); } },
+      { id: 'import-github', icon: 'bi bi-github', label: 'Import from GitHub', run: function() { noOpenDocumentGithub.click(); } },
+      { id: 'welcome-template', icon: 'lucide-panels-top-left', label: 'Welcome template', run: function() { noOpenDocumentWelcome.click(); } }
+    ];
+    const virtualButton = createDocumentMenuButton('Quick start', actions);
+    openDocumentMenu(
+      virtualButton,
+      virtualButton._documentMenu,
+      getContextMenuPosition(event, noOpenDocument),
+      noOpenDocument
+    );
+  }
+
+  function selectionBelongsToElement(selection, element) {
+    if (!selection || !element || !selection.anchorNode || !selection.focusNode) return false;
+    return element.contains(selection.anchorNode) && element.contains(selection.focusNode);
+  }
+
+  function captureDocumentSurfaceSelection(surface) {
+    const tabId = surface === documentSplitEditor || surface === documentSplitPreview ? secondarySplitTabId : activeTabId;
+    if (!tabId) return null;
+    if (surface === markdownEditor || surface === documentSplitEditor) {
+      if (surface.selectionStart === surface.selectionEnd) return null;
+      return {
+        surface: surface, tabId: tabId, value: surface.value,
+        start: surface.selectionStart, end: surface.selectionEnd, direction: surface.selectionDirection
+      };
+    }
+    const selection = window.getSelection();
+    if (!selectionBelongsToElement(selection, surface) || selection.isCollapsed || !selection.rangeCount) return null;
+    return { surface: surface, tabId: tabId, range: selection.getRangeAt(0).cloneRange() };
+  }
+
+  function restoreDocumentSurfaceSelection(snapshot, focus) {
+    if (!snapshot) return false;
+    const surface = snapshot.surface;
+    const tabId = surface === documentSplitEditor || surface === documentSplitPreview ? secondarySplitTabId : activeTabId;
+    if (!surface.isConnected || snapshot.tabId !== tabId) return false;
+    if (snapshot.range) {
+      if (snapshot.range.collapsed || !surface.contains(snapshot.range.startContainer) || !surface.contains(snapshot.range.endContainer)) return false;
+      if (focus) surface.focus({ preventScroll: true });
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(snapshot.range);
+    } else {
+      if (snapshot.value !== surface.value) return false;
+      if (focus) surface.focus({ preventScroll: true });
+      surface.setSelectionRange(snapshot.start, snapshot.end, snapshot.direction);
+    }
+    return true;
+  }
+
+  function getPreviewSelectionClipboardContent(surface, selection) {
+    if (!selectionBelongsToElement(selection, surface) || selection.isCollapsed || !selection.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    let fragment = range.cloneContents();
+    // cloneContents omits shared ancestors, including the bold, heading, list,
+    // or table cell that gives a partial selection its formatting.
+    let ancestor = range.commonAncestorContainer;
+    if (ancestor.nodeType !== Node.ELEMENT_NODE) ancestor = ancestor.parentElement;
+    while (ancestor && ancestor !== surface) {
+      const wrapper = ancestor.cloneNode(false);
+      wrapper.appendChild(fragment);
+      fragment = wrapper;
+      ancestor = ancestor.parentElement;
+    }
+    const container = document.createElement('div');
+    container.appendChild(fragment);
+    removeExportOnlyControls(container);
+    container.querySelectorAll(
+      '.code-preview-toolbar, .review-pins-layer, button, [role="toolbar"], ' +
+      'script, style, mjx-assistive-mml'
+    ).forEach(function(element) { element.remove(); });
+    const html = DOMPurify.sanitize(container.innerHTML, {
+      ALLOW_DATA_ATTR: false,
+      FORBID_ATTR: ['id', 'class', 'contenteditable', 'tabindex'],
+      ALLOWED_URI_REGEXP: SAFE_MARKDOWN_URI_REGEXP
+    });
+    container.innerHTML = html;
+    // innerText needs a rendered node to retain paragraph, table, and code line
+    // breaks. Keep this temporary copy out of view and the accessibility tree.
+    container.setAttribute('aria-hidden', 'true');
+    container.style.cssText = 'position:fixed;left:-10000px;top:0;pointer-events:none;';
+    document.body.appendChild(container);
+    try {
+      return { text: container.innerText, html: html };
+    } finally {
+      container.remove();
+    }
+  }
+
+  function getDocumentSurfaceContext(surface) {
+    const isSecondary = surface === documentSplitEditor || surface === documentSplitPreview;
+    const tabId = isSecondary ? secondarySplitTabId : activeTabId;
+    const tab = tabs.find(function(item) { return item.id === tabId && isTabOpen(item); });
+    if (!tab) return null;
+    const editor = surface === markdownEditor || surface === documentSplitEditor ? surface : null;
+    let selectedText = '';
+    let selectedHtml = '';
+    let selectionStart = null;
+    let selectionEnd = null;
+    if (editor) {
+      selectionStart = editor.selectionStart;
+      selectionEnd = editor.selectionEnd;
+      selectedText = editor.value.slice(selectionStart, selectionEnd);
+    } else {
+      const content = getPreviewSelectionClipboardContent(surface, window.getSelection());
+      if (content) {
+        selectedText = content.text;
+        selectedHtml = content.html;
+      }
+    }
+    return {
+      tab: tab,
+      tabId: tabId,
+      editor: editor,
+      selectedText: selectedText,
+      selectedHtml: selectedHtml,
+      selectionStart: selectionStart,
+      selectionEnd: selectionEnd,
+      editable: Boolean(editor && !editor.readOnly && (isSecondary || canMutateEditor()))
+    };
+  }
+
+  function replaceDocumentSurfaceSelection(context, replacement) {
+    if (!context || !context.editor || !context.editable) return;
+    const start = context.selectionStart;
+    const end = context.selectionEnd;
+    if (context.editor === markdownEditor) {
+      replaceEditorRange(start, end, replacement);
+      return;
+    }
+    context.editor.focus();
+    context.editor.setRangeText(replacement, start, end, 'end');
+    context.editor.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  async function copyDocumentSurfaceSelection(context, cut) {
+    if (!context || (!context.selectedText && !context.selectedHtml)) return;
+    try {
+      if (context.selectedHtml && !cut) {
+        await copyHtmlToClipboard(context.selectedText, context.selectedHtml);
+      } else {
+        await copyTextToClipboard(context.selectedText);
+      }
+      if (cut) replaceDocumentSurfaceSelection(context, '');
+      showAppToast(cut ? 'Selection cut to clipboard.' : 'Selection copied to clipboard.', {
+        tone: 'success',
+        title: cut ? 'Cut' : 'Copied',
+        icon: cut ? 'lucide-square-pen' : 'lucide-copy'
+      });
+    } catch (error) {
+      showAppToast('Clipboard access failed: ' + error.message, { tone: 'error', title: 'Clipboard unavailable' });
+    }
+  }
+
+  async function pasteIntoDocumentSurface(context) {
+    if (!context || !context.editable) return;
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
+        throw new Error('Paste permission is not available in this browser');
+      }
+      const text = await navigator.clipboard.readText();
+      replaceDocumentSurfaceSelection(context, text);
+    } catch (error) {
+      showAppToast('Paste failed: ' + error.message, { tone: 'error', title: 'Clipboard unavailable' });
+    }
+  }
+
+  function selectAllDocumentSurface(surface) {
+    surface.focus({ preventScroll: true });
+    if (surface === markdownEditor || surface === documentSplitEditor) {
+      surface.select();
+      return;
+    }
+    const range = document.createRange();
+    range.selectNodeContents(surface);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function openDocumentSurfaceContextMenu(surface, event, keepSelectionMenuOpen) {
+    let context = getDocumentSurfaceContext(surface);
+    if (!context) return;
+    lastFocusedDocumentTabId = context.tabId;
+    const preserveEditorSelection = Boolean(
+      context.editor &&
+      context.selectedText &&
+      event &&
+      event.button === 2
+    );
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const actions = [
+      { id: 'new-document', icon: 'lucide-file-plus-2', label: 'New file', run: function() { newTab(); } },
+      { separator: true },
+      { id: 'cut', icon: 'lucide-square-pen', label: 'Cut', disabled: !context.editable || !context.selectedText, run: function() { copyDocumentSurfaceSelection(context, true); } },
+      { id: 'copy', icon: 'lucide-copy', label: 'Copy', disabled: !context.selectedText && !context.selectedHtml, run: function() { copyDocumentSurfaceSelection(context, false); } },
+      { id: 'paste', icon: 'lucide-file-plus-2', label: 'Paste', disabled: !context.editable, run: function() { pasteIntoDocumentSurface(context); } },
+      { id: 'select-all', icon: 'lucide-scan-text', label: 'Select All', keepOpen: keepSelectionMenuOpen, run: function() {
+        selectAllDocumentSurface(surface);
+        if (keepSelectionMenuOpen) {
+          // Touch selection actions stay available so the next tap can copy.
+          context = getDocumentSurfaceContext(surface);
+          menu._touchSelection = captureDocumentSurfaceSelection(surface);
+          menu.querySelector('[data-action="copy"]').disabled = !context || (!context.selectedText && !context.selectedHtml);
+          menu.querySelector('[data-action="cut"]').disabled = !context || !context.editable || !context.selectedText;
+        }
+      } },
+      { separator: true }
+    ];
+    getDocumentMenuActions(context.tab).forEach(function(action) {
+      if (action.id !== 'open' && action.id !== 'split' && action.id !== 'split-close') actions.push(action);
+    });
+    const virtualButton = createDocumentMenuButton(context.tab.title || 'Untitled', actions);
+    const menu = virtualButton._documentMenu;
+    menu.classList.add('document-surface-menu');
+    if (keepSelectionMenuOpen) menu._touchSelection = captureDocumentSurfaceSelection(surface);
+    menu.addEventListener('mousedown', function(event) {
+      // Pointer actions must not collapse the document selection.
+      if (event.button === 0) event.preventDefault();
+    });
+    openDocumentMenu(
+      virtualButton,
+      virtualButton._documentMenu,
+      getContextMenuPosition(event, surface),
+      surface,
+      { focusFirstAction: !preserveEditorSelection && !keepSelectionMenuOpen }
+    );
+  }
 
   async function moveDocumentToLocation(tabId, workspaceId, folderId, options) {
     const shouldAnnounce = !options || options.announce !== false;
@@ -6437,7 +6758,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (toggleIcon) toggleIcon.className = 'lucide lucide-chevron-down';
     }
     const folderIcon = row.querySelector('.document-tree-main > i:first-child');
-    if (folderIcon && location.workspaceId !== SECRET_WORKSPACE_ID) folderIcon.className = 'lucide lucide-folder-open';
+    if (folderIcon && location.folderId && location.workspaceId !== SECRET_WORKSPACE_ID) folderIcon.className = 'lucide lucide-folder-open';
     const group = row.nextElementSibling;
     if (group && group.classList.contains('document-tree-group')) group.hidden = false;
     announceToScreenReader((item.name || 'Folder') + ' expanded.');
@@ -6823,7 +7144,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         ariaLabel: workspace.name + (secretLocked ? ', locked' : ', file location'),
         icon: isSecretWorkspace
           ? (secretLocked ? 'lucide-shield' : 'lucide-shield-check')
-          : (expanded ? 'lucide-folder-open' : 'lucide-folder'),
+          : 'lucide-briefcase-business',
         depth: 0,
         expanded: expanded,
         meta: secretLocked ? 'Locked' : String(workspaceDocuments.length),
@@ -6937,6 +7258,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (!tree || !documentOrganization) return;
     removeDocumentSidebarMenus();
     tree.textContent = '';
+    tree.removeAttribute('aria-busy');
     const filter = documentOrganization.ui.filter || 'all';
     documentSidebarRenderBudget = { remaining: documentSidebarRenderLimit };
     let renderedCount = filter === 'all' ? renderWorkspaceTree(tree) : renderFlatDocumentView(tree, filter);
@@ -11227,8 +11549,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   function updateDocumentToolbarAvailability(hasActiveDocument) {
     if (markdownFormatToolbar) {
       markdownFormatToolbar.classList.toggle('is-no-active-document', !hasActiveDocument);
-      markdownFormatToolbar.setAttribute('aria-disabled', hasActiveDocument ? 'false' : 'true');
-      updateMissingDocumentControlState(Array.from(markdownFormatToolbar.querySelectorAll('button')), hasActiveDocument);
+      // Fullscreen is a workspace control; its exit must survive closing the last tab.
+      updateMissingDocumentControlState(Array.from(markdownFormatToolbar.querySelectorAll('button:not([data-md-action="fullscreen"])')), hasActiveDocument);
     }
 
     updateMissingDocumentControlState([
@@ -11535,6 +11857,102 @@ document.addEventListener("DOMContentLoaded", async function () {
     announceToScreenReader(idsToClose.size + ' tabs closed. Files remain available in Explorer.');
   }
 
+  function openTabContextMenu(tab, point, focusTab) {
+    if (!tab) return;
+    closeTabMenus();
+    const visibleTabs = getTabBarTabs();
+    const openTabs = getOpenTabs();
+    const tabIndex = visibleTabs.findIndex(function(item) { return item.id === tab.id; });
+    const menu = document.createElement('div');
+    menu.className = 'tab-menu-dropdown tab-context-menu open';
+    menu.setAttribute('data-tab-context-menu', 'true');
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', 'Tab actions for ' + (tab.title || 'Untitled'));
+
+    const isCombinedSplitTab = tab.id === activeTabId && Boolean(secondarySplitTabId);
+    const closeActions = [{
+      id: 'close', icon: 'lucide-x', label: 'Close'
+    }, {
+      id: 'others', icon: 'lucide-circle-x', label: 'Close others', disabled: openTabs.length < 2
+    }, {
+      id: 'right', icon: 'lucide-arrow-right-to-line', label: 'Close to the right', disabled: tabIndex >= visibleTabs.length - 1
+    }, {
+      id: 'left', icon: 'lucide-arrow-left-to-line', label: 'Close to the left', disabled: tabIndex <= 0
+    }, {
+      id: 'all', icon: 'lucide-square-x', label: 'Close all'
+    }];
+    const actions = isReleaseNotesTab(tab) ? closeActions.slice(0, 1) : [{
+      id: isCombinedSplitTab ? 'split-close' : 'split',
+      icon: isCombinedSplitTab ? 'lucide-panel-right-close' : 'lucide-columns-2',
+      label: isCombinedSplitTab ? 'Exit split view' : 'Open in split view',
+      disabled: !isCombinedSplitTab && tabs.length < 2
+    }, {
+      separator: true
+    }].concat(closeActions);
+
+    actions.forEach(function(action) {
+      if (action.separator) {
+        const separator = document.createElement('div');
+        separator.className = 'tab-menu-separator';
+        separator.setAttribute('role', 'separator');
+        menu.appendChild(separator);
+        return;
+      }
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'tab-menu-item';
+      button.setAttribute('role', 'menuitem');
+      button.disabled = action.disabled === true;
+      button.innerHTML = '<i class="lucide ' + action.icon + '" aria-hidden="true"></i> ' + action.label;
+      button.addEventListener('click', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (action.id === 'split') {
+          closeTabMenus();
+          openDocumentSplitPicker(tab.id);
+        } else if (action.id === 'split-close') {
+          closeTabMenus();
+          closeDocumentSplitView();
+        } else {
+          closeTabsByScope(tab.id, action.id);
+        }
+      });
+      menu.appendChild(button);
+    });
+
+    menu.addEventListener('click', function(event) { event.stopPropagation(); });
+    menu.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeTabMenus();
+        if (focusTab) focusTab.focus();
+        return;
+      }
+      const enabledItems = Array.from(menu.querySelectorAll('.tab-menu-item:not(:disabled)'));
+      const currentIndex = enabledItems.indexOf(document.activeElement);
+      let nextIndex = -1;
+      if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % enabledItems.length;
+      if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + enabledItems.length) % enabledItems.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = enabledItems.length - 1;
+      if (nextIndex !== -1) {
+        event.preventDefault();
+        enabledItems[nextIndex].focus();
+      }
+    });
+    document.body.appendChild(menu);
+
+    const margin = 8;
+    const width = menu.offsetWidth || 188;
+    const height = menu.offsetHeight || 230;
+    const left = Math.max(margin, Math.min(point.x, window.innerWidth - width - margin));
+    const top = Math.max(margin, Math.min(point.y, window.innerHeight - height - margin));
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    const firstEnabled = menu.querySelector('.tab-menu-item:not(:disabled)');
+    if (firstEnabled) firstEnabled.focus();
+  }
+
 
 
   function renderTabBar(tabsArr, currentActiveTabId) {
@@ -11625,7 +12043,17 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (tabMenu) item.appendChild(tabMenu.button);
       item.appendChild(closeButton);
 
+      // Suppress middle-button autoscroll, including over nested action buttons.
+      // Capture runs before their mousedown propagation guards.
+      item.addEventListener('mousedown', function(event) {
+        if (event.button === 1) event.preventDefault();
+      }, { capture: true });
 
+      item.addEventListener('contextmenu', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        openTabContextMenu(tab, { x: event.clientX, y: event.clientY }, item);
+      });
 
       item.addEventListener('dragstart', function() {
         draggedTabId = tab.id;
@@ -11672,7 +12100,24 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (tabId) switchTab(tabId);
     };
 
+    tabList.onauxclick = function(event) {
+      if (event.button !== 1) return;
+      const tabItem = event.target.closest('.tab-item');
+      if (!tabItem) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const tabId = tabItem.getAttribute('data-tab-id');
+      if (tabId) closeTab(tabId);
+    };
 
+    tabList.oncontextmenu = function(event) {
+      if (event.target.closest('.tab-item')) return;
+      const activeTab = tabs.find(function(tab) { return tab.id === activeTabId && isTabOpen(tab); });
+      if (!activeTab) return;
+      event.preventDefault();
+      const activeItem = tabList.querySelector('.tab-item.active');
+      openTabContextMenu(activeTab, { x: event.clientX, y: event.clientY }, activeItem);
+    };
 
 
     // Auto-scroll active tab into view (paint-aligned to prevent forced reflows)
@@ -11819,8 +12264,31 @@ document.addEventListener("DOMContentLoaded", async function () {
     }, { passive: false });
   }
 
+  function preserveTouchMenuSelectionOnDismiss(event) {
+    const menu = document.querySelector('.document-surface-menu.open');
+    // Dismissing onto the background keeps the highlight available for another
+    // tap. Editing, following links, and interacting with other panes stay native.
+    if (menu && menu._touchSelection && !reviewModeActive &&
+        !event.target.closest('.document-menu-dropdown, button, a, input, textarea, select, label, [contenteditable], [role="button"], #markdown-preview, #document-split-preview')) {
+      // Match a native background click when touchend suppresses mouse events.
+      if (document.activeElement === menu._touchSelection.surface) menu._touchSelection.surface.blur();
+      restoreDocumentSurfaceSelection(menu._touchSelection, false);
+      return true;
+    }
+    return false;
+  }
+
+  // WebKit may emit only touch events for a tap on a non-interactive background.
+  document.addEventListener('touchend', function(event) {
+    if (!event.defaultPrevented && event.touches.length === 0 && preserveTouchMenuSelectionOnDismiss(event)) {
+      event.preventDefault();
+      closeTabMenus();
+    }
+  }, { passive: false });
+
   // Close any open tab dropdown when clicking elsewhere in the document
-  document.addEventListener('click', function() {
+  document.addEventListener('click', function(event) {
+    preserveTouchMenuSelectionOnDismiss(event);
     closeTabMenus();
   });
 
@@ -11953,6 +12421,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   function syncDocumentSplitScroll(source, target) {
     if (!syncScrollingEnabled || !secondarySplitTabId || !source || !target) return;
+    if (isSynchronizedScrollEvent(source)) return;
     if (documentSplitScrollSource && documentSplitScrollSource !== source) return;
     documentSplitScrollSource = source;
     if (documentSplitSyncFrame) cancelAnimationFrame(documentSplitSyncFrame);
@@ -11963,7 +12432,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const targetRange = target.scrollHeight - target.clientHeight;
       const ratio = sourceRange > 0 ? source.scrollTop / sourceRange : 0;
       const targetPosition = targetRange * ratio;
-      if (Number.isFinite(targetPosition)) target.scrollTop = targetPosition;
+      if (Number.isFinite(targetPosition)) setSynchronizedScrollTop(target, targetPosition);
       documentSplitSyncReleaseTimeout = setTimeout(function() {
         documentSplitScrollSource = null;
       }, 48);
@@ -12197,6 +12666,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     pendingState = null;
     
     activeTabId = tabId;
+    lastFocusedDocumentTabId = tabId;
     const releaseNotesActive = isReleaseNotesTab(tab);
     document.body.classList.toggle('release-notes-active', releaseNotesActive);
     if (swapSplitPanes) secondarySplitTabId = previousActiveTabId;
@@ -12802,7 +13272,135 @@ document.addEventListener("DOMContentLoaded", async function () {
         else newTab(sampleMarkdown, 'Welcome to Markdown');
       };
     }
-
+    if (noOpenDocument) {
+      noOpenDocument.addEventListener('contextmenu', openQuickStartContextMenu);
+    }
+    [markdownEditor, markdownPreview, documentSplitEditor, documentSplitPreview].forEach(function(surface) {
+      if (!surface) return;
+      let lastPointerType = '';
+      let touchSelection = null;
+      function beginSelectionTap(event) {
+        touchSelection = null;
+        if (reviewModeActive || (event.touches && event.touches.length !== 1)) return;
+        if (event.target !== surface && event.target.closest('button, input, textarea, select, [contenteditable], [role="button"], summary')) return;
+        const point = event.touches ? event.touches[0] : event;
+        const snapshot = captureDocumentSurfaceSelection(surface);
+        if (!snapshot) return;
+        if (snapshot.range && !Array.from(snapshot.range.getClientRects()).some(function(rect) {
+          return point.clientX >= rect.left && point.clientX <= rect.right && point.clientY >= rect.top && point.clientY <= rect.bottom;
+        })) return;
+        touchSelection = { snapshot: snapshot, x: point.clientX, y: point.clientY, time: Date.now() };
+      }
+      function cancelSelectionTap() { touchSelection = null; }
+      function moveSelectionTap(event) {
+        if (!touchSelection) return;
+        const point = event.touches ? event.touches[0] : event;
+        if (!point || (event.touches && event.touches.length !== 1) ||
+            Math.hypot(point.clientX - touchSelection.x, point.clientY - touchSelection.y) > 10) cancelSelectionTap();
+      }
+      function rememberDocumentFocus() {
+        lastFocusedDocumentTabId = surface === documentSplitEditor || surface === documentSplitPreview
+          ? secondarySplitTabId : activeTabId;
+      }
+      surface.addEventListener('focusin', rememberDocumentFocus);
+      surface.addEventListener('pointerdown', function(event) {
+        lastPointerType = event.pointerType;
+        rememberDocumentFocus();
+        if (event.pointerType === 'touch') beginSelectionTap(event);
+        else cancelSelectionTap();
+      }, { capture: true });
+      surface.addEventListener('touchstart', function(event) {
+        lastPointerType = 'touch';
+        rememberDocumentFocus();
+        if (!touchSelection || event.touches.length !== 1) beginSelectionTap(event);
+      }, { passive: true, capture: true });
+      surface.addEventListener('pointermove', moveSelectionTap, { passive: true });
+      surface.addEventListener('touchmove', moveSelectionTap, { passive: true });
+      ['pointercancel', 'touchcancel', 'scroll', 'input'].forEach(function(type) {
+        surface.addEventListener(type, cancelSelectionTap, { passive: true });
+      });
+      surface.addEventListener('keydown', function() { lastPointerType = ''; cancelSelectionTap(); });
+      function finishSelectionTap(event) {
+        const gesture = touchSelection;
+        cancelSelectionTap();
+        if (!gesture || event.defaultPrevented || Date.now() - gesture.time > 1000) return;
+        const snapshot = gesture.snapshot;
+        // Textareas place the caret before click, so a tap outside a partial
+        // selection must still be able to position the editing cursor normally.
+        if (!snapshot.range && surface.selectionStart === surface.selectionEnd &&
+            (surface.selectionStart < snapshot.start || surface.selectionStart > snapshot.end)) return;
+        if (!restoreDocumentSurfaceSelection(snapshot, true)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (document.querySelector('.document-surface-menu.open')) {
+          closeDocumentSidebarMenus();
+          return;
+        }
+        openDocumentSurfaceContextMenu(surface, event, true);
+      }
+      surface.addEventListener('click', finishSelectionTap, { capture: true });
+      surface.addEventListener('touchend', function(event) {
+        // A tap on selected page text may start a drag instead of emitting click.
+        // Handle a stationary preview tap before those compatibility mouse events.
+        if (surface === markdownEditor || surface === documentSplitEditor) {
+          if (touchSelection) touchSelection.ended = true;
+        } else finishSelectionTap(event);
+      }, { passive: false });
+      surface.addEventListener('dragstart', function(event) {
+        if (lastPointerType === 'touch' && captureDocumentSurfaceSelection(surface)) {
+          // Android can turn a press on highlighted text into a native drag image.
+          event.preventDefault();
+        }
+        cancelSelectionTap();
+      });
+      if (surface === markdownEditor || surface === documentSplitEditor) {
+        surface.addEventListener('mousedown', function(event) {
+          if (event.button === 2 && surface.selectionStart !== surface.selectionEnd) {
+            event.preventDefault();
+          }
+        });
+      } else {
+        surface.addEventListener('keydown', function(event) {
+          if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey ||
+              !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'a') return;
+          if (event.target instanceof Element &&
+              (event.target.closest('input, textarea, select') || event.target.isContentEditable)) return;
+          event.preventDefault();
+          selectAllDocumentSurface(surface);
+        });
+      }
+      surface.addEventListener('contextmenu', function(event) {
+        // Chromium may emit contextmenu between a touch tap's mousedown and
+        // mouseup. Wait for click so the new menu cannot swallow that mouseup
+        // and immediately dismiss itself. A long press opens before touchend.
+        if (touchSelection && touchSelection.ended && Date.now() - touchSelection.time <= 1000) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        // Use the input source, not screen size: a tablet may also have a mouse.
+        const isTouchSelection = event.pointerType === 'touch' || lastPointerType === 'touch' ||
+          Boolean(event.sourceCapabilities && event.sourceCapabilities.firesTouchEvents);
+        lastPointerType = '';
+        cancelSelectionTap();
+        openDocumentSurfaceContextMenu(surface, event, isTouchSelection);
+      });
+    });
+    document.addEventListener('copy', function(event) {
+      if (event.defaultPrevented || !event.clipboardData) return;
+      if (event.target instanceof Element &&
+          (event.target.closest('textarea, input') || event.target.isContentEditable)) return;
+      const selection = window.getSelection();
+      const surface = [markdownPreview, documentSplitPreview].find(function(preview) {
+        return selectionBelongsToElement(selection, preview);
+      });
+      if (!surface) return;
+      const content = getPreviewSelectionClipboardContent(surface, selection);
+      if (!content) return;
+      event.clipboardData.setData('text/html', content.html);
+      event.clipboardData.setData('text/plain', content.text);
+      event.preventDefault();
+    });
     return hadExistingWorkspace;
   }
 
@@ -14695,6 +15293,7 @@ ${selector} .arrowheadPath {
   }
 
   function renderMarkdown(options) {
+    window.renderMarkdown = renderMarkdown;
     stopActiveAbcPlayback();
     options = options || {};
     const rawVal = markdownEditor.value;
@@ -16739,7 +17338,10 @@ ${selector} .arrowheadPath {
       
       while ((match = emojiRegex.exec(text)) !== null) {
         const shortcode = match[1];
-        const emoji = joypixels.shortnameToUnicode(`:${shortcode}:`);
+        const effectiveShortcode = (window.visualSettingsAdapters && typeof window.visualSettingsAdapters.resolveEmojiShortcode === 'function')
+          ? window.visualSettingsAdapters.resolveEmojiShortcode(shortcode)
+          : shortcode;
+        const emoji = joypixels.shortnameToUnicode(`:${effectiveShortcode}:`);
         
         if (emoji !== `:${shortcode}:`) { // If conversion was successful
           hasEmoji = true;
@@ -16826,7 +17428,21 @@ ${selector} .arrowheadPath {
     readingTimeElement.textContent = readingTimeMinutes;
   }
 
+  function isSynchronizedScrollEvent(element) {
+    if (element.scrollTop === synchronizedScrollPositions.get(element)) return true;
+    synchronizedScrollPositions.delete(element);
+    return false;
+  }
+
+  function setSynchronizedScrollTop(element, top) {
+    element.scrollTo({ top, behavior: 'instant' });
+    // Remember the browser's rounded/clamped result. A delayed target scroll
+    // event must not echo back and interrupt the source pane's animation.
+    synchronizedScrollPositions.set(element, element.scrollTop);
+  }
+
   function syncEditorToPreview() {
+    if (isSynchronizedScrollEvent(markdownEditor)) return;
     // During an outline jump, the preview owns the position until the next user
     // interaction. Delayed editor scroll events must not undo a layout correction.
     if (!syncScrollingEnabled || isPreviewScrolling || isProgrammaticScrolling || documentOutlineScrollTarget) return;
@@ -16834,6 +17450,7 @@ ${selector} .arrowheadPath {
     if (!sourceDocumentId || previewLastRenderedTabId !== sourceDocumentId) return;
     isEditorScrolling = true;
 
+    clearTimeout(scrollSyncReleaseTimeout);
     if (scrollSyncTimeout) cancelAnimationFrame(scrollSyncTimeout);
     scrollSyncTimeout = requestAnimationFrame(function() {
       scrollSyncTimeout = null;
@@ -16849,21 +17466,24 @@ ${selector} .arrowheadPath {
         editorScrollRatio;
 
       if (!isNaN(previewScrollPosition) && isFinite(previewScrollPosition)) {
-        previewPane.scrollTop = previewScrollPosition;
+        setSynchronizedScrollTop(previewPane, previewScrollPosition);
       }
 
-      setTimeout(function() {
+      scrollSyncReleaseTimeout = setTimeout(function() {
+        scrollSyncReleaseTimeout = null;
         isEditorScrolling = false;
       }, 50);
     });
   }
 
   function syncPreviewToEditor() {
+    if (isSynchronizedScrollEvent(previewPane)) return;
     if (!syncScrollingEnabled || isEditorScrolling || isProgrammaticScrolling) return;
     const sourceDocumentId = previewLastRenderedTabId;
     if (!sourceDocumentId || activeTabId !== sourceDocumentId) return;
     isPreviewScrolling = true;
 
+    clearTimeout(scrollSyncReleaseTimeout);
     if (scrollSyncTimeout) cancelAnimationFrame(scrollSyncTimeout);
     scrollSyncTimeout = requestAnimationFrame(function() {
       scrollSyncTimeout = null;
@@ -16879,23 +17499,77 @@ ${selector} .arrowheadPath {
         previewScrollRatio;
 
       if (!isNaN(editorScrollPosition) && isFinite(editorScrollPosition)) {
-        markdownEditor.scrollTop = editorScrollPosition;
+        setSynchronizedScrollTop(markdownEditor, editorScrollPosition);
         syncEditorScrollOverlays();
       }
 
-      setTimeout(function() {
+      scrollSyncReleaseTimeout = setTimeout(function() {
+        scrollSyncReleaseTimeout = null;
         isPreviewScrolling = false;
       }, 50);
     });
   }
 
   function cancelPendingMainScrollSync() {
+    synchronizedScrollPositions.delete(markdownEditor);
+    synchronizedScrollPositions.delete(previewPane);
+    clearTimeout(scrollSyncReleaseTimeout);
+    scrollSyncReleaseTimeout = null;
     if (scrollSyncTimeout) {
       cancelAnimationFrame(scrollSyncTimeout);
       scrollSyncTimeout = null;
     }
     isEditorScrolling = false;
     isPreviewScrolling = false;
+  }
+
+  function initEditorPageNavigation(editor) {
+    if (!editor) return;
+    let pendingNavigation = null;
+    let navigationFrame = null;
+    let navigationTimeout = null;
+
+    function clearPendingNavigation() {
+      pendingNavigation = null;
+      if (navigationFrame) cancelAnimationFrame(navigationFrame);
+      navigationFrame = null;
+      clearTimeout(navigationTimeout);
+      navigationTimeout = null;
+    }
+
+    editor.addEventListener('keydown', function(event) {
+      clearPendingNavigation();
+      if (event.defaultPrevented || (event.key !== 'PageDown' && event.key !== 'PageUp') ||
+          event.altKey || event.ctrlKey || event.metaKey ||
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      pendingNavigation = { top: editor.scrollTop };
+      // Selection can stay within the viewport and produce no scroll event.
+      navigationTimeout = setTimeout(clearPendingNavigation, 200);
+    });
+
+    editor.addEventListener('scroll', function() {
+      if (!pendingNavigation || navigationFrame) return;
+      // Leave an existing native animation alone. Only an immediate scrollend
+      // before this frame needs the smooth-scrolling fallback below.
+      navigationFrame = requestAnimationFrame(clearPendingNavigation);
+    });
+
+    editor.addEventListener('scrollend', function() {
+      const navigation = pendingNavigation;
+      clearPendingNavigation();
+      if (!navigation || editor.scrollTop === navigation.top) return;
+      // Let the browser choose the destination and update the caret/selection,
+      // then animate that same destination before the instant jump is painted.
+      const top = editor.scrollTop;
+      const left = editor.scrollLeft;
+      editor.scrollTo({ top: navigation.top, left, behavior: 'instant' });
+      if (editor === markdownEditor) syncEditorScrollOverlays();
+      editor.scrollTo({ top, left, behavior: 'smooth' });
+    });
+    ['blur', 'pointerdown', 'wheel'].forEach(function(type) {
+      editor.addEventListener(type, clearPendingNavigation, { passive: true });
+    });
   }
 
   function toggleSyncScrolling() {
@@ -17333,7 +18007,8 @@ ${selector} .arrowheadPath {
     const targetTab = tabs.find(function(tab) { return tab.id === targetTabId; });
     if (!targetTab || isTemporaryDocument(targetTab) || isPrivateStorageMode()) return true;
     if (liveCollaboration && liveCollaboration.tabId === targetTabId) return true;
-    saveCurrentTabState();
+    if (targetTabId === secondarySplitTabId) saveSecondarySplitState();
+    else if (targetTabId === activeTabId) saveCurrentTabState();
     if (targetTab.workspaceId === SECRET_WORKSPACE_ID) {
       await flushSecretWorkspaceToStorage();
       return true;
@@ -17341,13 +18016,21 @@ ${selector} .arrowheadPath {
     return await _flushTabsToStorage(tabs, { changedIds: [targetTabId] });
   }
 
-  function restoreEditorAfterFailedImageInsertion(targetTabId, originalValue, selectionStart, selectionEnd) {
-    if (activeTabId !== targetTabId) return;
+  function restoreEditorAfterFailedImageInsertion(targetTabId, originalValue, selectionStart, selectionEnd, editorOverride) {
+    const editor = editorOverride || markdownEditor;
+    if ((editor === documentSplitEditor ? secondarySplitTabId : activeTabId) !== targetTabId) return;
+    if (editor === documentSplitEditor) {
+      editor.value = originalValue;
+      editor.setSelectionRange(selectionStart, selectionEnd);
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
     const targetTab = tabs.find(function(tab) { return tab.id === targetTabId; });
     markdownEditor.value = originalValue;
     markdownEditor.setSelectionRange(selectionStart, selectionEnd);
     lastPushedValue = originalValue;
     if (targetTab) targetTab.content = originalValue;
+    markdownEditor.dispatchEvent(new Event('input', { bubbles: true }));
     renderMarkdown({ reason: 'image-storage-rollback', force: true });
     updateDocumentStats();
     scheduleLineNumberUpdate({ force: true });
@@ -17355,13 +18038,14 @@ ${selector} .arrowheadPath {
 
   async function insertImageFilesIntoEditor(fileList, options) {
     const settings = options || {};
+    const editor = settings.editor || markdownEditor;
     const suppliedFiles = Array.from(fileList || []);
     const mediaFiles = suppliedFiles.filter(isMediaFile);
     if (mediaFiles.length !== suppliedFiles.length) {
       showUnsupportedFileToast('Choose an image, GIF, MP4, WebM, or Ogg video file.');
     }
     if (!mediaFiles.length) return 0;
-    if (!hasActiveOpenDocument() || !canMutateEditor()) {
+    if (!isMarkdownEditorEditable(editor)) {
       announceToScreenReader(getEditorReadOnlyMessage());
       return 0;
     }
@@ -17376,19 +18060,27 @@ ${selector} .arrowheadPath {
       showUnsupportedFileToast('This media file exceeds the supported limit: still images 25 MB before optimization, GIFs 5 MB, and videos 10 MB.');
     }
     if (!acceptedFiles.length) return 0;
+    const targetTabId = editor === documentSplitEditor ? secondarySplitTabId : activeTabId;
+    const originalValue = editor.value;
+    const start = Number.isFinite(settings.selectionStart) ? settings.selectionStart : editor.selectionStart;
+    const end = Number.isFinite(settings.selectionEnd) ? settings.selectionEnd : editor.selectionEnd;
+    function targetIsUnchanged() {
+      return (editor === documentSplitEditor ? secondarySplitTabId : activeTabId) === targetTabId &&
+        editor.value === originalValue && isMarkdownEditorEditable(editor);
+    }
     if (!(await requestManagedImageUploadConsent())) {
       announceToScreenReader('Media upload cancelled.');
       return 0;
     }
-
-    const targetTabId = activeTabId;
-    const originalValue = markdownEditor.value;
-    const start = Number.isFinite(settings.selectionStart) ? settings.selectionStart : markdownEditor.selectionStart;
-    const end = Number.isFinite(settings.selectionEnd) ? settings.selectionEnd : markdownEditor.selectionEnd;
+    if (!targetIsUnchanged()) {
+      announceToScreenReader('Media insertion was cancelled because the document changed.');
+      return 0;
+    }
     const source = settings.source === 'clipboard'
       ? 'clipboard'
       : (settings.source === 'upload' ? 'upload' : 'drop');
     let didInsert = false;
+    let insertedValue;
     let uploadedCount = 0;
     showMediaProgress(acceptedFiles.length);
     if (typeof settings.onStage === 'function') settings.onStage('preparing');
@@ -17407,7 +18099,7 @@ ${selector} .arrowheadPath {
         uploadedCount = index + 1;
         updateMediaProgress(uploadedCount, acceptedFiles.length, (file.name || 'Media file') + ' uploaded');
       }
-      if (activeTabId !== targetTabId || markdownEditor.value !== originalValue || !canMutateEditor()) {
+      if (!targetIsUnchanged()) {
         finishMediaProgress(uploadedCount, acceptedFiles.length, { title: 'Media insertion cancelled', detail: 'The document changed during upload.' });
         announceToScreenReader('Media insertion was cancelled because the document changed.');
         return 0;
@@ -17427,16 +18119,17 @@ ${selector} .arrowheadPath {
         return '![' + altText + '](' + managedItem.url + ')';
       }).join('\n\n');
 
-      replaceEditorRange(start, end, markdown, start + markdown.length, start + markdown.length);
+      replaceMarkdownEditorRange(editor, start, end, markdown, start + markdown.length, start + markdown.length);
       didInsert = true;
+      insertedValue = editor.value;
       const persisted = await persistImageInsertion(targetTabId);
       if (!persisted) throw new Error('The browser could not save the short media link.');
       finishMediaProgress(acceptedFiles.length, acceptedFiles.length);
       announceToScreenReader(acceptedFiles.length + ' media file' + (acceptedFiles.length === 1 ? '' : 's') + ' uploaded and inserted with short links.');
       return acceptedFiles.length;
     } catch (error) {
-      if (didInsert) {
-        restoreEditorAfterFailedImageInsertion(targetTabId, originalValue, start, end);
+      if (didInsert && editor.value === insertedValue) {
+        restoreEditorAfterFailedImageInsertion(targetTabId, originalValue, start, end, editor);
       }
       finishMediaProgress(uploadedCount, acceptedFiles.length);
       console.warn('Media insertion failed:', error);
@@ -17847,6 +18540,14 @@ ${selector} .arrowheadPath {
     return true;
   }
 
+  function formatMarkdownDateTime() {
+    const now = new Date();
+    const datePart = now.toLocaleDateString('en-CA');
+    const timePart = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+    return `${datePart} ${timePart} ${dayName}`;
+  }
+
   const SLASH_COMMANDS = Object.freeze([
     { id: 'paragraph', label: 'Paragraph', description: 'Continue with plain text', icon: 'lucide-pilcrow', keywords: 'text normal body', insert: '' },
     { id: 'heading-1', label: 'Heading 1', description: 'Large section heading', textIcon: 'H1', keywords: 'title h1', insert: '# ' },
@@ -17862,13 +18563,14 @@ ${selector} .arrowheadPath {
     { id: 'code-block', label: 'Code block', description: 'Insert a fenced code block', icon: 'lucide-square-code', keywords: 'fence programming', insert: '```\ncode\n```\n', select: [4, 8] },
     { id: 'horizontal-rule', label: 'Horizontal rule', description: 'Separate sections', icon: 'lucide-minus', keywords: 'divider separator', insert: '---\n' },
     { id: 'link', label: 'Link', description: 'Insert a Markdown link', icon: 'lucide-link-2', keywords: 'url hyperlink', insert: '[text](https://example.com)', select: [1, 5] },
+    { id: 'reference', label: 'Reference', description: 'Insert a numbered reference link', icon: 'lucide-bookmark', keywords: 'reference numbered link', action: 'reference' },
     { id: 'image', label: 'Image or video', description: 'Upload media or use a URL', icon: 'lucide-image', keywords: 'photo picture media upload url', action: 'image' },
     { id: 'table', label: 'Table', description: 'Choose columns and rows', icon: 'lucide-grid-2x2', keywords: 'columns rows grid', action: 'table' },
     { id: 'alert', label: 'Alert', description: 'Choose Note, Tip, Important, Warning, or Caution', icon: 'lucide-badge-alert', keywords: 'callout note tip important warning caution', action: 'alert' },
     { id: 'math', label: 'Math block', description: 'Insert display math', icon: 'lucide-braces', keywords: 'latex equation', insert: '$$\nformula\n$$\n', select: [3, 10] },
     { id: 'diagram', label: 'Diagram', description: 'Choose a diagram or visualization', icon: 'lucide-workflow', keywords: 'mermaid plantuml graphviz d2 markmap vega wavedrom map chart', action: 'diagram' },
     { id: 'terminal-block', label: 'Terminal block', description: 'Insert a shell command block', icon: 'lucide-square-terminal', keywords: 'bash shell command console', insert: '```bash\nnpm run dev\n```\n', select: [8, 19] },
-    { id: 'date', label: 'Date and time', description: 'Insert the current date and time', icon: 'lucide-clock-3', keywords: 'today timestamp time', build: function() { return new Date().toLocaleString(); } }
+    { id: 'date', label: 'Date and time', description: 'Insert the current date and time', icon: 'lucide-clock-3', keywords: 'today timestamp time', build: formatMarkdownDateTime }
   ]);
   let slashCommandState = null;
   let slashCommandMenu = null;
@@ -17879,11 +18581,13 @@ ${selector} .arrowheadPath {
     if (slashCommandMenu) return slashCommandMenu;
     slashCommandMenu = document.createElement('div');
     slashCommandMenu.id = 'slash-command-menu';
-    slashCommandMenu.className = 'slash-command-menu';
+    slashCommandMenu.className = 'slash-command-menu app-command-menu';
     slashCommandMenu.hidden = true;
     const header = document.createElement('div');
-    header.className = 'slash-command-header';
-    header.textContent = 'Insert block';
+    header.className = 'slash-command-header settings-menu-header';
+    const title = document.createElement('strong');
+    title.textContent = 'Insert block';
+    header.appendChild(title);
     slashCommandList = document.createElement('div');
     slashCommandList.id = 'slash-command-list';
     slashCommandList.className = 'slash-command-list';
@@ -17944,15 +18648,24 @@ ${selector} .arrowheadPath {
     if (!editor || !slashCommandMenu || slashCommandMenu.hidden) return;
     const caret = getSlashMenuCaretPosition(editor);
     const margin = 8;
-    const width = Math.min(340, window.innerWidth - margin * 2);
-    slashCommandMenu.style.width = width + 'px';
+    const width = slashCommandMenu.offsetWidth;
     const preferredLeft = window.getComputedStyle(editor).direction === 'rtl' ? caret.left - width : caret.left;
     const left = Math.max(margin, Math.min(preferredLeft, window.innerWidth - width - margin));
-    let top = caret.top + caret.lineHeight + 6;
-    const menuHeight = slashCommandMenu.offsetHeight || 360;
-    if (top + menuHeight > window.innerHeight - margin) top = Math.max(margin, caret.top - menuHeight - 6);
+    const belowTop = Math.max(margin, caret.top + caret.lineHeight + 6);
+    const aboveBottom = Math.min(window.innerHeight - margin, caret.top - 6);
+    const spaceBelow = Math.max(0, window.innerHeight - margin - belowTop);
+    const spaceAbove = Math.max(0, aboveBottom - margin);
+    // Measure the natural height again after filtering or resizing the viewport.
+    slashCommandMenu.style.maxHeight = '';
+    const menuHeight = Math.ceil(slashCommandMenu.getBoundingClientRect().height);
+    const showBelow = menuHeight <= spaceBelow || spaceBelow >= spaceAbove;
+    // Constrain the list on the chosen side instead of clamping a tall menu over the caret.
+    slashCommandMenu.style.maxHeight = Math.min(menuHeight, showBelow ? spaceBelow : spaceAbove) + 'px';
+    const top = showBelow ? belowTop : aboveBottom - slashCommandMenu.getBoundingClientRect().height;
     slashCommandMenu.style.left = left + 'px';
     slashCommandMenu.style.top = top + 'px';
+    const activeItem = slashCommandList.querySelector('[aria-selected="true"]');
+    if (activeItem) activeItem.scrollIntoView({ block: 'nearest' });
   }
 
   function closeSlashCommandMenu(options) {
@@ -18000,6 +18713,7 @@ ${selector} .arrowheadPath {
         else if (command.action === 'alert') openAlertModal(state.editor);
         else if (command.action === 'diagram') void openDiagramModal(null, state.editor);
         else if (command.action === 'image') insertMarkdownImage(state.editor);
+        else if (command.action === 'reference') insertMarkdownReference(state.editor);
       });
       return;
     }
@@ -18032,18 +18746,18 @@ ${selector} .arrowheadPath {
         const item = document.createElement('button');
         item.type = 'button';
         item.id = 'slash-command-' + command.id;
-        item.className = 'slash-command-item';
+        item.className = 'slash-command-item app-menu-item';
         item.tabIndex = -1;
         item.setAttribute('role', 'option');
         item.setAttribute('aria-selected', 'false');
-        item.innerHTML = '<span class="slash-command-icon">' + (command.textIcon
-          ? '<span class="slash-command-text-icon" aria-hidden="true"></span>'
-          : '<i class="lucide ' + command.icon + '" aria-hidden="true"></i>') + '</span>' +
-          '<span class="slash-command-copy"><strong></strong><small></small></span>';
+        item.innerHTML = (command.textIcon
+          ? '<span class="slash-command-text-icon markdown-tool-menu-symbol" aria-hidden="true"></span>'
+          : '<i class="slash-command-icon lucide ' + command.icon + '" aria-hidden="true"></i>') +
+          '<span class="app-menu-copy"><span class="app-menu-label"></span><span class="app-menu-description"></span></span>';
         const textIcon = item.querySelector('.slash-command-text-icon');
         if (textIcon) textIcon.textContent = command.textIcon;
-        item.querySelector('strong').textContent = command.label;
-        item.querySelector('small').textContent = command.description;
+        item.querySelector('.app-menu-label').textContent = command.label;
+        item.querySelector('.app-menu-description').textContent = command.description;
         item.addEventListener('mouseenter', function() { selectSlashCommand(index); });
         item.addEventListener('click', function() { executeSlashCommand(command); });
         slashCommandList.appendChild(item);
@@ -18650,12 +19364,14 @@ ${selector} .arrowheadPath {
             shortcode: `:${name}:`,
             search: `${name} :${name}:`.toLowerCase(),
           }));
+        if (!emojiEntries.length) throw new Error('Empty emoji response');
         emojiUrlMap = new Map(emojiEntries.map((entry) => [entry.name, entry.url]));
         emojiLookupLoaded = true;
         return emojiEntries;
       })
       .catch((error) => {
         console.error('Failed to load GitHub emojis:', error);
+        emojiLoadPromise = null;
         emojiEntries = [];
         emojiUrlMap = new Map();
         emojiLookupLoaded = true;
@@ -18762,193 +19478,440 @@ ${selector} .arrowheadPath {
     });
   }
 
-  function openEmojiModal() {
+  function loadEmojiCatalog() {
+    if (!emojiCatalogPromise) {
+      emojiCatalogPromise = fetch('assets/emoji/catalog.json')
+        .then(response => {
+          if (!response.ok) throw new Error(`Emoji catalog request failed (${response.status})`);
+          return response.json();
+        })
+        .then(catalog => {
+          if (!Array.isArray(catalog) || !catalog.length) throw new Error('Empty emoji catalog');
+          return catalog;
+        })
+        .catch(error => {
+          emojiCatalogPromise = null;
+          throw error;
+        });
+    }
+    return emojiCatalogPromise;
+  }
+
+  function buildEmojiPickerEntries(entries, catalog) {
+    const available = new Map(entries.map(entry => [entry.name, entry]));
+    const grouped = [];
+    catalog.forEach(record => {
+      const aliases = record.aliases.filter(alias => available.has(alias));
+      if (!aliases.length) return;
+      const entry = available.get(aliases[0]);
+      grouped.push({ ...entry, ...record, name: entry.name, aliases,
+        search: [record.emoji, record.description, ...record.tags, ...aliases].join(' ').toLowerCase().replace(/[_-]/g, ' ') });
+      aliases.forEach(alias => available.delete(alias));
+    });
+    available.forEach(entry => grouped.push({ ...entry, category: 'github', aliases: [entry.name],
+      search: entry.search.replace(/[_-]/g, ' '), emoji: '', description: entry.name.replace(/_/g, ' ') }));
+    return grouped;
+  }
+
+  function openEmojiModal(trigger) {
     const modal = document.getElementById('emoji-modal');
     const grid = document.getElementById('emoji-modal-grid');
-    const emptyMessage = document.getElementById('emoji-modal-empty');
+    const emptyState = document.getElementById('emoji-modal-empty');
+    const status = document.getElementById('emoji-modal-status');
+    const loadingSpinner = document.getElementById('emoji-modal-spinner');
     const searchInput = document.getElementById('emoji-modal-search');
+    const clearSearch = document.getElementById('emoji-modal-clear-search');
+    const categoryBar = document.getElementById('emoji-modal-categories');
+    const heading = document.getElementById('emoji-modal-category-title');
+    const shortcodePreview = document.getElementById('emoji-modal-shortcode');
+    const selectionTray = document.getElementById('emoji-modal-selection');
+    const selectionHint = document.getElementById('emoji-modal-selection-hint');
+    const selectionCount = document.getElementById('emoji-modal-selection-count');
+    const copyBtn = document.getElementById('emoji-modal-copy');
+    const retryBtn = document.getElementById('emoji-modal-retry');
     const confirmBtn = document.getElementById('emoji-modal-insert');
     const cancelBtn = document.getElementById('emoji-modal-cancel');
-    if (!modal || !grid || !emptyMessage || !searchInput || !confirmBtn || !cancelBtn) return;
+    if (!modal || !grid) return;
     const start = markdownEditor.selectionStart;
     const end = markdownEditor.selectionEnd;
-    modal.style.display = 'flex';
-    confirmBtn.disabled = true;
-
-    // Localized and accessible announcements for loading
-    const loadingText = I18N_DICTS[activeLang].loadingEmojis || "Loading emojis...";
-    emptyMessage.textContent = loadingText;
-    emptyMessage.style.display = 'block';
-    announceToScreenReader(loadingText);
-
-    searchInput.value = '';
-    emojiSelection.clear();
-    // PERF-007: Clear elements using textContent
-    grid.textContent = '';
-    grid.scrollTop = 0;
-    emojiItems = [];
-
-    // Render visual placeholders during active requests
-    if (!emojiLookupLoaded) {
-      renderEmojiSkeletons();
-    }
-
-    let currentFilteredEntries = [];
-    let renderedCount = 0;
-    const CHUNK_SIZE = 120;
-
-    function updateInsertState() {
-      confirmBtn.disabled = emojiSelection.size === 0;
-    }
-
-    function toggleSelection(shortcode, element) {
-      if (emojiSelection.has(shortcode)) {
-        emojiSelection.delete(shortcode);
-        element.classList.remove('is-selected');
-      } else {
-        emojiSelection.add(shortcode);
-        element.classList.add('is-selected');
-      }
-      element.setAttribute('aria-pressed', emojiSelection.has(shortcode).toString());
-      updateInsertState();
-    }
-
-    function renderEmojiChunk(clear = false) {
-      if (clear) {
-        // PERF-007: Clear elements using textContent
-        grid.textContent = '';
-        emojiItems = [];
-        renderedCount = 0;
-      }
-
-      const nextBatch = currentFilteredEntries.slice(renderedCount, renderedCount + CHUNK_SIZE);
-      if (nextBatch.length === 0) {
-        emptyMessage.style.display = emojiItems.length ? 'none' : 'block';
-        return;
-      }
-
-      const fragment = document.createDocumentFragment();
-      const newItems = nextBatch.map((entry) => {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'emoji-item';
-
-        const isSelected = emojiSelection.has(entry.shortcode);
-        if (isSelected) {
-          item.classList.add('is-selected');
-        }
-        item.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-        item.dataset.search = entry.search;
-        item.dataset.shortcode = entry.shortcode;
-
-        const preview = document.createElement('span');
-        preview.className = 'emoji-preview';
-        const image = document.createElement('img');
-        image.src = entry.url;
-        image.alt = entry.shortcode;
-        image.loading = 'lazy';
-        preview.appendChild(image);
-
-        const shortcodeRow = document.createElement('div');
-        shortcodeRow.className = 'emoji-shortcode';
-        const code = document.createElement('span');
-        code.textContent = entry.shortcode;
-        const copyBtn = document.createElement('button');
-        copyBtn.type = 'button';
-        copyBtn.className = 'emoji-copy-btn';
-        copyBtn.setAttribute('aria-label', `Copy ${entry.shortcode}`);
-        copyBtn.innerHTML = '<i class="lucide lucide-copy"></i>';
-        copyBtn.addEventListener('click', (event) => {
-          event.stopPropagation();
-          copyTextToClipboard(entry.shortcode)
-            .then(() => flashCopyButton(copyBtn))
-            .catch((error) => console.error('Copy failed:', error));
-        });
-        shortcodeRow.appendChild(code);
-        shortcodeRow.appendChild(copyBtn);
-
-        item.appendChild(preview);
-        item.appendChild(shortcodeRow);
-        item.addEventListener('click', () => toggleSelection(entry.shortcode, item));
-        fragment.appendChild(item);
-        return { element: item, search: entry.search, shortcode: entry.shortcode };
+    const selection = new Map();
+    const itemCache = new Map();
+    const chipCache = new Map();
+    const listeners = new AbortController();
+    // Load only the visible rows and one row ahead, rather than competing with
+    // hundreds of offscreen downloads when a category is opened.
+    const imageObserver = new IntersectionObserver(entries => {
+      entries.forEach(({ target, isIntersecting }) => {
+        if (!isIntersecting || !grid.contains(target)) return;
+        loadPreviewImage(target);
+        imageObserver.unobserve(target);
       });
+    }, { root: grid, rootMargin: '50px 0px' });
+    const categories = [
+      { id: 'smileys', label: 'Smileys', title: 'Smileys & emotion', icon: 'smile' },
+      { id: 'people', label: 'People', title: 'People & body', icon: 'hand' },
+      { id: 'nature', label: 'Nature', title: 'Animals & nature', icon: 'leaf' },
+      { id: 'food', label: 'Food', title: 'Food & drink', icon: 'coffee' },
+      { id: 'travel', label: 'Travel', title: 'Travel & places', icon: 'plane' },
+      { id: 'activities', label: 'Activities', title: 'Activities', icon: 'trophy' },
+      { id: 'objects', label: 'Objects', title: 'Objects', icon: 'lightbulb' },
+      { id: 'symbols', label: 'Symbols', title: 'Symbols', icon: 'heart' },
+      { id: 'flags', label: 'Flags', title: 'Flags', icon: 'flag' },
+      { id: 'github', label: 'GitHub', title: 'GitHub', icon: 'code-2' }
+    ];
+    let activeCategory = 'smileys';
+    let pickerEntries = [];
+    let entriesByName = new Map();
+    let visibleEntries = [];
+    let activeIndex = 0;
+    let closed = false;
+    let loading = true;
+    let failed = false;
+    let skinToneRequest = 0;
 
-      emojiItems = emojiItems.concat(newItems);
-      grid.appendChild(fragment);
-      renderedCount += nextBatch.length;
-      emptyMessage.style.display = emojiItems.length ? 'none' : 'block';
+    function listen(element, event, handler) {
+      element.addEventListener(event, handler, { signal: listeners.signal });
     }
 
-    function applyFilter() {
-      const query = searchInput.value.trim().toLowerCase();
-      currentFilteredEntries = emojiEntries.filter(entry => !query || entry.search.includes(query));
-      renderEmojiChunk(true);
+    function loadPreviewImage(image) {
+      if (!image.dataset.src) return;
+      image.src = image.dataset.src;
+      delete image.dataset.src;
     }
 
-    function handleScroll() {
-      if (grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 60) {
-        renderEmojiChunk(false);
+    function previewSource(entry) {
+      return window.visualSettingsAdapters?.resolveEmojiImage?.(entry.name, entry.url) || { url: entry.url, unicode: '' };
+    }
+
+    async function ensureSkinToneLibrary() {
+      const tone = window.visualSettingsStore?.getSettings().emojiSkinTone;
+      if (tone && tone !== 'default' && !window.joypixels) await loadScript(CDN.joypixels);
+    }
+
+    function createPreview(entry, eager = false) {
+      const source = previewSource(entry);
+      const preview = document.createElement('span');
+      preview.className = 'emoji-preview skeleton-placeholder';
+      preview.setAttribute('aria-hidden', 'true');
+      preview.dataset.i18nSkip = 'true';
+      preview.dataset.url = source.url;
+      const image = document.createElement('img');
+      image.dataset.src = preview.dataset.url;
+      image.alt = '';
+      image.decoding = 'async';
+      function unavailable() {
+        preview.classList.remove('skeleton-placeholder');
+        // Some GitHub tone variants have no artwork. This is the final fallback,
+        // never temporary content shown ahead of a successfully loaded image.
+        if (source.unicode && source.url !== entry.url) {
+          preview.classList.add('is-unicode');
+          preview.textContent = source.unicode;
+          return;
+        }
+        preview.classList.add('is-unavailable');
+        preview.title = translateUiString('Unable to load emojis.');
+        const icon = document.createElement('i');
+        icon.className = 'lucide lucide-circle-alert';
+        preview.replaceChildren(icon);
       }
+      image.addEventListener('load', async () => {
+        try {
+          await image.decode();
+          preview.classList.remove('skeleton-placeholder');
+          preview.classList.add('has-image');
+        } catch (_) {
+          unavailable();
+        }
+      }, { once: true });
+      image.addEventListener('error', unavailable, { once: true });
+      preview.appendChild(image);
+      if (eager) loadPreviewImage(image);
+      return preview;
     }
 
-    function insertEmojis() {
-      if (!emojiSelection.size) return;
-      // Retain the modal's visual/definition order of emojis, consistent with the Symbols modal
-      const ordered = emojiItems
-        .filter(item => emojiSelection.has(item.shortcode))
-        .map(item => item.shortcode);
-      const insertion = ordered.join(' ');
-      modal.style.display = 'none';
-      cleanup();
-      replaceEditorRange(start, end, insertion, start + insertion.length, start + insertion.length);
-    }
-
-    function closeModal() {
-      modal.style.display = 'none';
-      cleanup();
-    }
-
-    function onKey(e) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        closeModal();
+    function refreshPreviewImages() {
+      imageObserver.disconnect();
+      for (const [cache, eager] of [[itemCache, false], [chipCache, true]]) {
+        cache.forEach((item, name) => {
+          const entry = entriesByName.get(name);
+          const preview = item.querySelector('.emoji-preview');
+          if (entry && preview.dataset.url !== previewSource(entry).url) {
+            preview.replaceWith(createPreview(entry, eager));
+          }
+        });
       }
+      grid.querySelectorAll('img[data-src]').forEach(image => imageObserver.observe(image));
     }
 
-    function cleanup() {
-      confirmBtn.removeEventListener('click', insertEmojis);
-      cancelBtn.removeEventListener('click', closeModal);
-      searchInput.removeEventListener('input', applyFilter);
-      searchInput.removeEventListener('keydown', onKey);
-      grid.removeEventListener('scroll', handleScroll);
+    function shortcodeFor(entry) {
+      const alias = searchInput.value.trim().toLowerCase().replace(/^:|:$/g, '');
+      return entry.aliases.includes(alias) ? `:${alias}:` : entry.shortcode;
     }
 
-    loadEmojiEntries().then((entries) => {
-      if (!entries.length) {
-        emptyMessage.textContent = 'Unable to load emojis.';
-        emptyMessage.style.display = 'block';
-        // PERF-007: Clear elements using textContent
-        grid.textContent = '';
-        emojiItems = [];
-        announceToScreenReader("Failed to load emojis.");
-        return;
-      }
-      currentFilteredEntries = entries;
-      renderEmojiChunk(true);
-      emptyMessage.textContent = 'No emojis found.';
-      announceToScreenReader("Emojis loaded. " + entries.length + " items available.");
-      updateInsertState();
+    function selectedText() {
+      return Array.from(selection.values(), item => item.shortcode).join(' ');
+    }
+
+    function updateSelection() {
+      confirmBtn.disabled = copyBtn.disabled = selection.size === 0;
+      selectionCount.textContent = selection.size ? translateUiString(`${selection.size} selected`) : '';
+      selectionHint.hidden = selection.size > 0;
+      selectionTray.hidden = selection.size === 0;
+      chipCache.forEach((chip, name) => {
+        if (!selection.has(name)) { chip.remove(); chipCache.delete(name); }
+      });
+      selection.forEach(({ entry, shortcode }) => {
+        if (chipCache.has(entry.name)) return;
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'emoji-selection-chip';
+        chip.dataset.name = entry.name;
+        chip.title = shortcode;
+        chip.setAttribute('aria-label', translateUiString(`Remove ${shortcode}`));
+        chip.appendChild(createPreview(entry, true));
+        const removeIcon = document.createElement('i');
+        removeIcon.className = 'lucide lucide-x';
+        removeIcon.setAttribute('aria-hidden', 'true');
+        chip.appendChild(removeIcon);
+        chipCache.set(entry.name, chip);
+        selectionTray.appendChild(chip);
+      });
+      Array.from(grid.children).forEach((item, index) => {
+        const selected = selection.has(visibleEntries[index].name);
+        item.setAttribute('aria-selected', String(selected));
+        item.classList.toggle('is-selected', selected);
+      });
+    }
+
+    function focusEmoji(index) {
+      if (!visibleEntries.length) return;
+      grid.children[activeIndex]?.setAttribute('tabindex', '-1');
+      activeIndex = Math.max(0, Math.min(index, visibleEntries.length - 1));
+      const item = grid.children[activeIndex];
+      item.tabIndex = 0;
+      item.focus({ preventScroll: true });
+      item.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    function renderEntries() {
+      const rawQuery = searchInput.value.trim().toLowerCase();
+      const aliasQuery = rawQuery.replace(/^:|:$/g, '');
+      const terms = rawQuery.replace(/[:_-]/g, ' ').split(/\s+/).filter(Boolean);
+      clearSearch.hidden = !searchInput.value;
+      shortcodePreview.textContent = '';
+      heading.textContent = rawQuery ? 'Search results' : categories.find(category => category.id === activeCategory).title;
+      categoryBar.querySelectorAll('button').forEach(button => {
+        button.setAttribute('aria-pressed', String(!rawQuery && button.dataset.category === activeCategory));
+      });
+      visibleEntries = pickerEntries.filter(entry => rawQuery
+        ? entry.aliases.includes(aliasQuery) || terms.every(term => entry.search.includes(term))
+        : entry.category === activeCategory);
+      if (rawQuery) visibleEntries.sort((a, b) => Number(b.aliases.includes(aliasQuery)) - Number(a.aliases.includes(aliasQuery)));
+      imageObserver.disconnect();
+      grid.scrollTop = 0;
+      activeIndex = 0;
+      const fragment = document.createDocumentFragment();
+      visibleEntries.forEach((entry, index) => {
+        let item = itemCache.get(entry.name);
+        if (!item) {
+          item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'emoji-item';
+          item.setAttribute('role', 'option');
+          item.dataset.name = entry.name;
+          item.dataset.i18nSkip = 'true';
+          item.appendChild(createPreview(entry));
+          itemCache.set(entry.name, item);
+        }
+        item.dataset.shortcode = shortcodeFor(entry);
+        item.setAttribute('aria-label', `${entry.description} ${item.dataset.shortcode}`);
+        item.title = item.dataset.shortcode;
+        item.tabIndex = index === 0 ? 0 : -1;
+        fragment.appendChild(item);
+      });
+      grid.replaceChildren(fragment);
+      grid.querySelectorAll('img[data-src]').forEach(image => imageObserver.observe(image));
+      grid.setAttribute('aria-busy', String(loading));
+      grid.hidden = failed;
+      emptyState.hidden = visibleEntries.length > 0 && !failed;
+      loadingSpinner.hidden = !loading;
+      emptyState.querySelector('.lucide').hidden = loading;
+      retryBtn.hidden = !failed;
+      status.textContent = loading ? 'Loading emojis...' : failed ? 'Unable to load emojis.' : 'No emojis found.';
+      updateSelection();
+    }
+
+    function chooseCategory(button) {
+      activeCategory = button.dataset.category;
+      searchInput.value = '';
+      categoryBar.querySelectorAll('button').forEach(item => { item.tabIndex = item === button ? 0 : -1; });
+      renderEntries();
+      button.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    categoryBar.textContent = '';
+    categories.forEach((category, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'emoji-category';
+      button.dataset.category = category.id;
+      button.tabIndex = index === 0 ? 0 : -1;
+      button.title = category.title;
+      button.setAttribute('aria-label', category.title);
+      button.setAttribute('aria-controls', 'emoji-modal-grid');
+      const icon = document.createElement('i');
+      icon.className = `lucide lucide-${category.icon}`;
+      icon.setAttribute('aria-hidden', 'true');
+      const label = document.createElement('span');
+      label.textContent = category.label;
+      button.append(icon, label);
+      categoryBar.appendChild(button);
     });
 
-    confirmBtn.addEventListener('click', insertEmojis);
-    cancelBtn.addEventListener('click', closeModal);
-    searchInput.addEventListener('input', applyFilter);
-    searchInput.addEventListener('keydown', onKey);
-    grid.addEventListener('scroll', handleScroll);
+    listen(categoryBar, 'click', event => {
+      const button = event.target.closest('button');
+      if (button) chooseCategory(button);
+    });
+    listen(categoryBar, 'keydown', event => {
+      const buttons = Array.from(categoryBar.children);
+      const index = buttons.indexOf(event.target);
+      const rtl = getComputedStyle(categoryBar).direction === 'rtl';
+      let next;
+      if (event.key === 'ArrowRight') next = index + (rtl ? -1 : 1);
+      if (event.key === 'ArrowLeft') next = index + (rtl ? 1 : -1);
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = buttons.length - 1;
+      if (event.key === 'ArrowDown') { event.preventDefault(); focusEmoji(0); }
+      if (next === undefined) return;
+      event.preventDefault();
+      const button = buttons[(next + buttons.length) % buttons.length];
+      chooseCategory(button);
+      button.focus({ preventScroll: true });
+    });
+    listen(grid, 'click', event => {
+      const item = event.target.closest('.emoji-item');
+      if (!item) return;
+      const entry = visibleEntries.find(entry => entry.name === item.dataset.name);
+      if (selection.has(entry.name)) selection.delete(entry.name);
+      else selection.set(entry.name, { entry, shortcode: item.dataset.shortcode });
+      updateSelection();
+    });
+    function previewItem(event) {
+      const item = event.target.closest('.emoji-item');
+      if (!item) return;
+      shortcodePreview.textContent = item.dataset.shortcode;
+      if (event.type === 'focusin') {
+        grid.children[activeIndex]?.setAttribute('tabindex', '-1');
+        activeIndex = Array.from(grid.children).indexOf(item);
+        item.tabIndex = 0;
+      }
+    }
+    listen(grid, 'mouseover', previewItem);
+    listen(grid, 'focusin', previewItem);
+    listen(grid, 'keydown', event => {
+      const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').length;
+      const rtl = getComputedStyle(grid).direction === 'rtl';
+      let next;
+      if (event.key === 'ArrowRight') next = activeIndex + (rtl ? -1 : 1);
+      if (event.key === 'ArrowLeft') next = activeIndex + (rtl ? 1 : -1);
+      if (event.key === 'ArrowDown') next = activeIndex + columns;
+      if (event.key === 'ArrowUp') next = activeIndex - columns;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = visibleEntries.length - 1;
+      if (next === undefined) return;
+      event.preventDefault();
+      focusEmoji(next);
+    });
+    listen(selectionTray, 'click', event => {
+      const chip = event.target.closest('button');
+      if (!chip) return;
+      const index = Array.from(selectionTray.children).indexOf(chip);
+      selection.delete(chip.dataset.name);
+      updateSelection();
+      (selectionTray.children[Math.min(index, selection.size - 1)] || searchInput).focus();
+    });
+    listen(copyBtn, 'click', async () => {
+      try {
+        await copyTextToClipboard(selectedText());
+        if (!closed) {
+          flashCopyButton(copyBtn);
+          announceToScreenReader(translateUiString('Copied!'));
+        }
+      } catch (error) {
+        if (!closed) showAppToast(translateUiString('Copy failed. Please try again.'));
+      }
+    });
+    listen(searchInput, 'input', renderEntries);
+    listen(searchInput, 'keydown', event => {
+      if (event.key === 'ArrowDown') { event.preventDefault(); focusEmoji(0); }
+    });
+    listen(clearSearch, 'click', () => {
+      searchInput.value = '';
+      renderEntries();
+      searchInput.focus();
+    });
+    const unsubscribeSettings = window.visualSettingsStore?.onSettingsChange(async (_, changedKey) => {
+      if (changedKey !== 'emojiSkinTone' && changedKey !== '*') return;
+      const request = ++skinToneRequest;
+      try {
+        await ensureSkinToneLibrary();
+        if (closed || request !== skinToneRequest) return;
+        if (failed) load();
+        else refreshPreviewImages();
+      } catch (error) {
+        if (!closed && request === skinToneRequest) { failed = true; renderEntries(); }
+      }
+    });
 
-    requestAnimationFrame(() => searchInput.focus());
+    function closeModal() {
+      if (closed) return;
+      closed = true;
+      listeners.abort();
+      unsubscribeSettings?.();
+      imageObserver.disconnect();
+      clearTimeout(copyBtn.copyTimeout);
+      closeAppModal(modal);
+    }
+    listen(confirmBtn, 'click', () => {
+      if (!selection.size) return;
+      const insertion = selectedText();
+      closeModal();
+      replaceEditorRange(start, end, insertion, start + insertion.length, start + insertion.length);
+    });
+    listen(cancelBtn, 'click', closeModal);
+    async function load() {
+      loading = true;
+      failed = false;
+      renderEntries();
+      try {
+        const [entries, catalog] = await Promise.all([loadEmojiEntries(), loadEmojiCatalog(), ensureSkinToneLibrary()]);
+        // The preference can change while the catalog is still downloading.
+        await ensureSkinToneLibrary();
+        if (closed) return;
+        if (!entries.length) throw new Error('Empty emoji response');
+        pickerEntries = buildEmojiPickerEntries(entries, catalog);
+        entriesByName = new Map(pickerEntries.map(entry => [entry.name, entry]));
+        refreshPreviewImages();
+      } catch (error) {
+        if (closed) return;
+        failed = true;
+      }
+      loading = false;
+      renderEntries();
+    }
+    listen(retryBtn, 'click', () => {
+      searchInput.focus();
+      load();
+    });
+    searchInput.value = '';
+    selectionTray.replaceChildren();
+    copyBtn.classList.remove('is-copied');
+    copyBtn.querySelector('i').className = 'lucide lucide-copy';
+    categoryBar.scrollLeft = 0;
+    openAppModal(modal, { focusTarget: searchInput, returnFocus: trigger, onClose: closeModal });
+    load();
   }
+
 
   function openSymbolsModal() {
     const modal = document.getElementById('symbols-modal');
@@ -20653,6 +21616,7 @@ ${selector} .arrowheadPath {
       if (isProcessing) return;
       setProcessing(true);
       const insertedCount = await insertImageFilesIntoEditor([file], {
+        editor: editor,
         source: 'upload',
         selectionStart: start,
         selectionEnd: end,
@@ -20754,7 +21718,8 @@ ${selector} .arrowheadPath {
     updateMode(true);
   }
 
-  function insertMarkdownReference() {
+  function insertMarkdownReference(editorOverride) {
+    const editor = editorOverride || markdownEditor;
     const modal = document.getElementById('reference-modal');
     const numberInput = document.getElementById('reference-modal-number');
     const urlInput = document.getElementById('reference-modal-url');
@@ -20762,9 +21727,9 @@ ${selector} .arrowheadPath {
     const confirmBtn = document.getElementById('reference-modal-apply');
     const cancelBtn = document.getElementById('reference-modal-cancel');
     if (!modal || !numberInput || !urlInput || !titleInput || !confirmBtn || !cancelBtn) return;
-    const start = markdownEditor.selectionStart;
-    const end = markdownEditor.selectionEnd;
-    const currentValue = markdownEditor.value;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const currentValue = editor.value;
     const used = getUsedReferenceNumbers(currentValue);
     const maxUsed = used.size ? Math.max(...used) : 0;
     referenceCounter = Math.max(1, maxUsed + 1);
@@ -20775,7 +21740,7 @@ ${selector} .arrowheadPath {
     modal.style.display = 'flex';
 
     function insertReference() {
-      const latestValue = markdownEditor.value;
+      const latestValue = editor.value;
       const usedNumbers = getUsedReferenceNumbers(latestValue);
       const parsed = parseInt(numberInput.value.replace(/[^\d]/g, ''), 10);
       const baseNumber = Number.isNaN(parsed) ? suggestedNumber : parsed;
@@ -20792,11 +21757,8 @@ ${selector} .arrowheadPath {
         separator = '\n';
       }
       const updatedValue = baseValue + separator + definition;
-      markdownEditor.value = updatedValue;
-      markdownEditor.focus();
       const caret = start + inlineReference.length;
-      markdownEditor.setSelectionRange(caret, caret);
-      markdownEditor.dispatchEvent(new Event('input', { bubbles: true }));
+      replaceMarkdownEditorRange(editor, 0, latestValue.length, updatedValue, caret, caret);
       referenceCounter = Math.max(referenceCounter, finalNumber + 1);
       modal.style.display = 'none';
       cleanup();
@@ -22835,6 +23797,124 @@ ${selector} .arrowheadPath {
     markdownEditor.addEventListener('scroll', scheduleOutlineHighlight, { passive: true });
   }
 
+  let fullscreenTransitionPending = false;
+  let fullscreenFallbackScroll = null;
+
+  function getNativeFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement;
+  }
+
+  function updateFullscreenButtonState() {
+    const fullscreenButton = markdownFormatToolbar && markdownFormatToolbar.querySelector('[data-md-action="fullscreen"]');
+    if (!fullscreenButton) return;
+    const isFallback = document.documentElement.classList.contains('is-fullscreen-fallback');
+    const isFullscreen = Boolean(getNativeFullscreenElement()) || isFallback;
+    const label = isFallback ? 'Exit expanded view' : (isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen');
+    const icon = fullscreenButton.querySelector('i');
+    fullscreenButton.setAttribute('title', label + ' (F11 / Cmd+Option+F)');
+    fullscreenButton.setAttribute('aria-label', label);
+    fullscreenButton.setAttribute('aria-pressed', String(isFullscreen));
+    if (icon) icon.className = isFullscreen ? 'lucide lucide-minimize' : 'lucide lucide-maximize';
+  }
+
+  function updateFullscreenViewport() {
+    if (!document.documentElement.classList.contains('is-fullscreen-fallback')) return;
+    const viewport = window.visualViewport;
+    // Follow the keyboard/browser bars without reflowing the page during pinch zoom.
+    if (viewport && viewport.scale !== 1) return;
+    document.documentElement.style.setProperty('--fullscreen-viewport-height', (viewport ? viewport.height : window.innerHeight) + 'px');
+  }
+
+  function setFullscreenFallback(enabled) {
+    const root = document.documentElement;
+    if (root.classList.contains('is-fullscreen-fallback') === enabled) return;
+    if (enabled) fullscreenFallbackScroll = { x: window.scrollX, y: window.scrollY };
+    root.classList.toggle('is-fullscreen-fallback', enabled);
+    if (enabled) {
+      updateFullscreenViewport();
+      window.scrollTo(0, 0);
+      showAppToast('Fullscreen is unavailable here. Expanded view keeps browser controls visible.', {
+        title: 'Expanded view', tone: 'info', dedupeKey: 'fullscreen-fallback'
+      });
+    } else {
+      root.style.removeProperty('--fullscreen-viewport-height');
+      if (fullscreenFallbackScroll) window.scrollTo(fullscreenFallbackScroll.x, fullscreenFallbackScroll.y);
+      fullscreenFallbackScroll = null;
+    }
+    updateFullscreenButtonState();
+  }
+
+  function changeNativeFullscreen(receiver, method) {
+    return new Promise(function(resolve, reject) {
+      let settled = false;
+      let timeout;
+      function finish(error) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        ['fullscreenchange', 'webkitfullscreenchange'].forEach(name => document.removeEventListener(name, changed));
+        ['fullscreenerror', 'webkitfullscreenerror'].forEach(name => document.removeEventListener(name, failed));
+        if (error) reject(error);
+        else resolve();
+      }
+      function changed() { finish(); }
+      function failed() { finish(new Error('Fullscreen transition failed')); }
+      ['fullscreenchange', 'webkitfullscreenchange'].forEach(name => document.addEventListener(name, changed));
+      ['fullscreenerror', 'webkitfullscreenerror'].forEach(name => document.addEventListener(name, failed));
+      try {
+        // Call synchronously so Safari retains the click's user activation.
+        const result = method.call(receiver);
+        if (result && typeof result.then === 'function') result.then(changed, failed);
+        // Older Safari returns void; wait for its change/error event, not an immediate await.
+        else if (!settled) timeout = setTimeout(failed, 4000);
+      } catch (error) {
+        finish(error);
+      }
+    });
+  }
+
+  async function toggleFullscreenMode() {
+    if (fullscreenTransitionPending) return;
+    const root = document.documentElement;
+    if (getNativeFullscreenElement()) {
+      fullscreenTransitionPending = true;
+      try {
+        const exit = document.fullscreenElement ? document.exitFullscreen : document.webkitExitFullscreen;
+        await changeNativeFullscreen(document, exit);
+      } catch (error) {
+        showAppToast('Could not exit fullscreen. Try again or use your browser\'s exit control.', { title: 'Fullscreen', tone: 'error' });
+      } finally {
+        fullscreenTransitionPending = false;
+        updateFullscreenButtonState();
+      }
+      return;
+    }
+
+    if (root.classList.contains('is-fullscreen-fallback')) {
+      setFullscreenFallback(false);
+      return;
+    }
+
+    // Prefer the standard API. Use the prefix only on Safari versions without it.
+    const useStandardApi = typeof root.requestFullscreen === 'function';
+    const request = useStandardApi ? root.requestFullscreen : root.webkitRequestFullscreen;
+    const allowed = useStandardApi ? document.fullscreenEnabled : document.webkitFullscreenEnabled;
+    fullscreenTransitionPending = true;
+    try {
+      if (typeof request === 'function' && allowed !== false) {
+        try {
+          await changeNativeFullscreen(root, request);
+        } catch (error) {
+          // A rejected request needs the same fallback as a missing API (e.g. iPhone).
+        }
+      }
+      if (!getNativeFullscreenElement()) setFullscreenFallback(true);
+    } finally {
+      fullscreenTransitionPending = false;
+      updateFullscreenButtonState();
+    }
+  }
+
   function runMarkdownTool(action, button) {
     if (!canMutateEditor() && isLiveMutatingAction(action)) {
       announceToScreenReader(getEditorReadOnlyMessage());
@@ -22878,23 +23958,17 @@ ${selector} .arrowheadPath {
     else if (action === 'code-block') insertMarkdownBlock('```js\n' + (markdownEditor.value.slice(markdownEditor.selectionStart, markdownEditor.selectionEnd) || 'console.log("Hello, Markdown!");') + '\n```\n');
     else if (action === 'table') openTableModal();
     else if (action === 'date-time') {
-      const now = new Date();
-      const datePart = now.toLocaleDateString('en-CA');
-      const timePart = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-      const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
-      const timestamp = `${datePart} ${timePart} ${dayName}`;
+      const timestamp = formatMarkdownDateTime();
       replaceEditorRange(markdownEditor.selectionStart, markdownEditor.selectionEnd, timestamp, markdownEditor.selectionStart + timestamp.length, markdownEditor.selectionStart + timestamp.length);
     } else if (action === 'emoji') {
-      openEmojiModal();
+      openEmojiModal(button);
     }
     else if (action === 'symbols') openSymbolsModal();
     else if (action === 'alert') openAlertModal();
     else if (action === 'diagram') openDiagramModal(button);
     else if (action === 'terminal-block') insertMarkdownBlock('```bash\nnpm run dev\n```\n');
-    else if (action === 'fullscreen') {
-      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
-      else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
-    } else if (action === 'outline') setDocumentOutlineOpen(documentOutline.hidden);
+    else if (action === 'fullscreen') toggleFullscreenMode();
+    else if (action === 'outline') setDocumentOutlineOpen(documentOutline.hidden);
     else if (action === 'clear-formatting') openClearFormattingModal();
     else if (action === 'find') openFindReplaceModal();
     else if (action === 'help') openHelpModal();
@@ -23524,6 +24598,13 @@ ${selector} .arrowheadPath {
     });
   }
 
+  if (mobileVisualSettingsButton) {
+    mobileVisualSettingsButton.addEventListener('click', function() {
+      closeMobileMenu();
+      openVisualSettingsModal(mobileMenuToggle);
+    });
+  }
+
   if (mobileStorageSettingsButton) {
     mobileStorageSettingsButton.addEventListener('click', function() {
       closeMobileMenu();
@@ -23535,6 +24616,243 @@ ${selector} .arrowheadPath {
     mobileTrashSettingsButton.addEventListener('click', function() {
       closeMobileMenu();
       openTrashModal(mobileTrashSettingsButton);
+    });
+  }
+
+  // Preview Styling settings
+  function populateVisualSettingsOptions() {
+    const options = (window.visualSettingsAdapters && typeof window.visualSettingsAdapters.getOptions === 'function')
+      ? window.visualSettingsAdapters.getOptions()
+      : (window.visualSettingsStore ? window.visualSettingsStore.DEFAULT_OPTIONS : null);
+
+    if (!options) return;
+
+    const list = [
+      { el: selectHljsTheme, opts: options.hljsTheme, namedOptions: true },
+      { el: selectMathFont, opts: options.mathFont, namedOptions: true },
+      { el: selectMermaidTheme, opts: options.mermaidTheme },
+      { el: selectMermaidLook, opts: options.mermaidLook },
+      { el: selectEmojiSkinTone, opts: options.emojiSkinTone }
+    ];
+
+    list.forEach(function(item) {
+      if (!item.el || !item.opts) return;
+      const currentVal = item.el.value;
+      item.el.innerHTML = '';
+      item.opts.forEach(function(opt) {
+        const val = typeof opt === 'object' && opt !== null ? opt.value : opt;
+        const label = typeof opt === 'object' && opt !== null ? opt.label : opt;
+        const optEl = document.createElement('option');
+        optEl.value = val;
+        optEl.textContent = label;
+        if (item.namedOptions && val !== 'auto' && val !== 'default') {
+          optEl.setAttribute('data-i18n-skip', '');
+        }
+        item.el.appendChild(optEl);
+      });
+      if (currentVal) item.el.value = currentVal;
+    });
+  }
+
+  function syncVisualSettingsUI() {
+    if (!window.visualSettingsStore) return;
+    const settings = window.visualSettingsStore.getSettings();
+    if (selectHljsTheme && settings.hljsTheme) selectHljsTheme.value = settings.hljsTheme;
+    if (selectMathFont && settings.mathFont) selectMathFont.value = settings.mathFont;
+    if (selectMermaidTheme && settings.mermaidTheme) selectMermaidTheme.value = settings.mermaidTheme;
+    if (selectMermaidLook && settings.mermaidLook) selectMermaidLook.value = settings.mermaidLook;
+    if (selectEmojiSkinTone && settings.emojiSkinTone) selectEmojiSkinTone.value = settings.emojiSkinTone;
+  }
+
+  const visualSettingHints = [];
+
+  function hideVisualSettingHints() {
+    visualSettingHints.forEach(hint => hint.hide());
+  }
+
+  function initializeVisualSettingHints() {
+    if (visualSettingHints.length || !window.bootstrap?.Tooltip) return;
+    visualSettingsModal.querySelectorAll('[data-setting-help]').forEach(button => {
+      const help = document.getElementById(button.dataset.settingHelp);
+      const tooltip = new bootstrap.Tooltip(button, {
+        title: () => help.textContent.trim(),
+        container: visualSettingsModal,
+        customClass: 'visual-setting-tooltip',
+        placement: 'top',
+        trigger: 'manual',
+        animation: false
+      });
+      let hideTimer;
+      const hide = () => {
+        clearTimeout(hideTimer);
+        tooltip.hide();
+      };
+      const show = () => {
+        clearTimeout(hideTimer);
+        if (button.hasAttribute('aria-describedby')) return;
+        hideVisualSettingHints();
+        tooltip.show();
+      };
+      const scheduleHide = () => {
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => {
+          const tip = document.getElementById(button.getAttribute('aria-describedby'));
+          if (document.activeElement !== button && !button.matches(':hover') && !tip?.matches(':hover')) hide();
+        }, 120);
+      };
+      visualSettingHints.push({ hide });
+      button.addEventListener('mouseenter', show);
+      button.addEventListener('mouseleave', scheduleHide);
+      button.addEventListener('focus', show);
+      button.addEventListener('blur', scheduleHide);
+      button.addEventListener('click', () => {
+        button.focus();
+        show();
+      });
+      button.addEventListener('inserted.bs.tooltip', () => {
+        const tip = document.getElementById(button.getAttribute('aria-describedby'));
+        tip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+        tip.addEventListener('mouseleave', scheduleHide);
+      });
+    });
+    visualSettingsModal.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && visualSettingsModal.querySelector('.visual-setting-tooltip.show')) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        hideVisualSettingHints();
+      }
+    }, true);
+    visualSettingsModal.addEventListener('pointerdown', event => {
+      if (!event.target.closest('.visual-setting-info, .visual-setting-tooltip')) hideVisualSettingHints();
+    });
+    visualSettingsModal.querySelector('.visual-settings-body').addEventListener('scroll', hideVisualSettingHints);
+  }
+
+  function openVisualSettingsModal(opener) {
+    if (!visualSettingsModal) return;
+    hideVisualSettingHints();
+    populateVisualSettingsOptions();
+    syncVisualSettingsUI();
+    initializeVisualSettingHints();
+    openAppModal(visualSettingsModal, {
+      focusTarget: selectHljsTheme,
+      returnFocus: opener || document.activeElement,
+      onClose: closeVisualSettingsModal
+    });
+  }
+
+  function closeVisualSettingsModal() {
+    hideVisualSettingHints();
+    if (visualSettingsModal) closeAppModal(visualSettingsModal);
+  }
+
+  let _visualSettingsDebounceTimer = null;
+
+  async function applyVisualSettings(settings, changedKey) {
+    if (window.visualSettingsAdapters) {
+      try {
+        if (changedKey === 'hljsTheme') {
+          await window.visualSettingsAdapters.applyHighlightTheme(settings.hljsTheme);
+        } else if (changedKey === 'mathFont') {
+          await window.visualSettingsAdapters.applyMathFont(settings.mathFont);
+        } else if (changedKey === 'mermaidTheme' || changedKey === 'mermaidLook') {
+          await window.visualSettingsAdapters.applyMermaid({
+            theme: settings.mermaidTheme,
+            look: settings.mermaidLook
+          });
+        } else if (changedKey === 'emojiSkinTone') {
+          await window.visualSettingsAdapters.applyEmojiSkinTone(settings.emojiSkinTone);
+        } else {
+          if (typeof window.visualSettingsAdapters.applyAll === 'function') {
+            await window.visualSettingsAdapters.applyAll(settings);
+          } else {
+            await Promise.all([
+              window.visualSettingsAdapters.applyHighlightTheme && window.visualSettingsAdapters.applyHighlightTheme(settings.hljsTheme),
+              window.visualSettingsAdapters.applyMathFont && window.visualSettingsAdapters.applyMathFont(settings.mathFont),
+              window.visualSettingsAdapters.applyMermaid && window.visualSettingsAdapters.applyMermaid({ theme: settings.mermaidTheme, look: settings.mermaidLook }),
+              window.visualSettingsAdapters.applyEmojiSkinTone && window.visualSettingsAdapters.applyEmojiSkinTone(settings.emojiSkinTone)
+            ]);
+          }
+        }
+      } catch (err) {
+        console.warn('Error applying visual setting via adapter:', err);
+      }
+    }
+
+    // Invalidate secondary split document preview cache (P6)
+    documentSplitPreviewContent = null;
+    if (secondarySplitTabId && typeof renderDocumentSplitView === 'function') {
+      renderDocumentSplitView();
+    }
+
+    // Check if re-render is needed according to adapter contract (e.g. hljsTheme does not need markdown AST re-render)
+    const needsRender = !window.visualSettingsAdapters ||
+      typeof window.visualSettingsAdapters.needsRerender !== 'function' ||
+      window.visualSettingsAdapters.needsRerender(changedKey);
+
+    if (needsRender) {
+      if (_visualSettingsDebounceTimer) {
+        clearTimeout(_visualSettingsDebounceTimer);
+      }
+      _visualSettingsDebounceTimer = setTimeout(function() {
+        _visualSettingsDebounceTimer = null;
+        renderMarkdown({ force: true, forceAdvancedPostProcess: true });
+      }, 50);
+    }
+  }
+
+  if (menuVisualSettingsButton) {
+    menuVisualSettingsButton.addEventListener('click', function() {
+      const settingsToggle = document.getElementById('workspaceSettingsDropdown');
+      if (settingsToggle && window.bootstrap && bootstrap.Dropdown) {
+        bootstrap.Dropdown.getOrCreateInstance(settingsToggle).hide();
+      }
+      openVisualSettingsModal(settingsToggle);
+    });
+  }
+
+  if (visualSettingsCloseBtn) visualSettingsCloseBtn.addEventListener('click', closeVisualSettingsModal);
+  if (visualSettingsCloseIcon) visualSettingsCloseIcon.addEventListener('click', closeVisualSettingsModal);
+
+  if (selectHljsTheme) {
+    selectHljsTheme.addEventListener('change', function() {
+      if (window.visualSettingsStore) window.visualSettingsStore.updateSetting('hljsTheme', selectHljsTheme.value);
+    });
+  }
+  if (selectMathFont) {
+    selectMathFont.addEventListener('change', function() {
+      if (window.visualSettingsStore) window.visualSettingsStore.updateSetting('mathFont', selectMathFont.value);
+    });
+  }
+  if (selectMermaidTheme) {
+    selectMermaidTheme.addEventListener('change', function() {
+      if (window.visualSettingsStore) window.visualSettingsStore.updateSetting('mermaidTheme', selectMermaidTheme.value);
+    });
+  }
+  if (selectMermaidLook) {
+    selectMermaidLook.addEventListener('change', function() {
+      if (window.visualSettingsStore) window.visualSettingsStore.updateSetting('mermaidLook', selectMermaidLook.value);
+    });
+  }
+  if (selectEmojiSkinTone) {
+    selectEmojiSkinTone.addEventListener('change', function() {
+      if (window.visualSettingsStore) window.visualSettingsStore.updateSetting('emojiSkinTone', selectEmojiSkinTone.value);
+    });
+  }
+
+  if (visualSettingsResetBtn) {
+    visualSettingsResetBtn.addEventListener('click', function() {
+      if (window.visualSettingsStore) {
+        window.visualSettingsStore.resetSettings();
+        syncVisualSettingsUI();
+      }
+    });
+  }
+
+  if (window.visualSettingsStore) {
+    window.visualSettingsStore.onSettingsChange(function(settings, changedKey) {
+      syncVisualSettingsUI();
+      applyVisualSettings(settings, changedKey);
     });
   }
 
@@ -23905,16 +25223,22 @@ ${selector} .arrowheadPath {
   initDropdownMenuMotion();
   initFindReplaceModal();
   initAppModals();
-  document.addEventListener('fullscreenchange', function() {
-    const fullscreenButton = markdownFormatToolbar && markdownFormatToolbar.querySelector('[data-md-action="fullscreen"]');
-    if (!fullscreenButton) return;
-    const isFullscreen = Boolean(document.fullscreenElement);
-    const label = isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
-    const icon = fullscreenButton.querySelector('i');
-    fullscreenButton.setAttribute('title', label + ' (F11 / Cmd+Option+F)');
-    fullscreenButton.setAttribute('aria-label', label);
-    if (icon) icon.className = isFullscreen ? 'lucide lucide-minimize' : 'lucide lucide-maximize';
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(function(name) {
+    document.addEventListener(name, function() {
+      if (getNativeFullscreenElement()) setFullscreenFallback(false);
+      updateFullscreenButtonState();
+    });
   });
+  window.addEventListener('resize', updateFullscreenViewport);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', updateFullscreenViewport);
+  // Run after dialog/menu handlers so their Escape action takes precedence.
+  window.addEventListener('keydown', function(event) {
+    if (event.key !== 'Escape' || event.defaultPrevented || activeModal || isFindModalOpen) return;
+    if (!document.documentElement.classList.contains('is-fullscreen-fallback')) return;
+    event.preventDefault();
+    setFullscreenFallback(false);
+  });
+  updateFullscreenButtonState();
   const headerAboutButton = document.getElementById('header-about-button');
   if (headerAboutButton) {
     headerAboutButton.addEventListener('click', openAboutModal);
@@ -23927,6 +25251,8 @@ ${selector} .arrowheadPath {
   markdownEditor.addEventListener('keydown', handleMarkdownEditorStructureKeydown);
   if (documentSplitEditor) documentSplitEditor.addEventListener('keydown', handleMarkdownEditorStructureKeydown);
   initSlashCommandMenu();
+  initEditorPageNavigation(markdownEditor);
+  initEditorPageNavigation(documentSplitEditor);
   
   markdownEditor.addEventListener("scroll", function() {
     cachedScrollTop = this.scrollTop;
@@ -24013,6 +25339,13 @@ ${selector} .arrowheadPath {
 
     updateMapThemes();
     updateStlThemes();
+    if (window.visualSettingsAdapters && typeof window.visualSettingsAdapters.onAppThemeChange === 'function') {
+      try {
+        window.visualSettingsAdapters.onAppThemeChange(theme);
+      } catch (err) {
+        console.warn('Error in visualSettingsAdapters.onAppThemeChange:', err);
+      }
+    }
   }
 
   if (themeToggle) {
@@ -26369,17 +27702,79 @@ ${selector} .arrowheadPath {
     }
   }
 
-  copyMarkdownButton.addEventListener("click", async function () {
-    if (isReleaseNotesActive()) return;
-    if (blockShareSnapshotSourceAccess()) return;
+  async function copyFullDocumentMarkdown() {
+    if (!hasActiveOpenDocument()) return;
+    const isSecondary = Boolean(secondarySplitTabId && lastFocusedDocumentTabId === secondarySplitTabId);
+    const tabId = isSecondary ? secondarySplitTabId : activeTabId;
+    const tab = tabs.find(function(item) { return item.id === tabId && isTabOpen(item); });
+    if (!tab) return;
+    if (isReleaseNotesTab(tab)) {
+      announceToScreenReader('Release notes do not expose Markdown source.');
+      return;
+    }
+    if (blockShareSnapshotSourceAccess(tabId)) return;
     try {
-      await copyTextToClipboard(markdownEditor.value);
+      await copyTextToClipboard(isSecondary ? documentSplitEditor.value : markdownEditor.value);
       showCopiedMessage();
+      announceToScreenReader('Markdown copied.');
     } catch (e) {
       console.error("Copy failed:", e);
       alert("Failed to copy Markdown: " + e.message);
     }
-  });
+  }
+
+  copyMarkdownButton.addEventListener('click', copyFullDocumentMarkdown);
+
+  async function copyHtmlToClipboard(text, html) {
+    if (window.isSecureContext && navigator.clipboard && typeof navigator.clipboard.write === 'function' && typeof ClipboardItem !== 'undefined') {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' })
+        })]);
+        return;
+      } catch (_) {
+        // Older browsers and embedded webviews may only support copy events.
+      }
+    }
+    const selection = window.getSelection();
+    const ranges = [];
+    for (let index = 0; selection && index < selection.rangeCount; index += 1) {
+      ranges.push(selection.getRangeAt(index).cloneRange());
+    }
+    const activeElement = document.activeElement;
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.setAttribute('aria-hidden', 'true');
+    textArea.style.cssText = 'position:fixed;left:-10000px;top:0;opacity:0;';
+    let copied = false;
+    const onCopy = function(event) {
+      if (!event.clipboardData) return;
+      event.clipboardData.setData('text/html', html);
+      event.clipboardData.setData('text/plain', text);
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      copied = true;
+    };
+    document.body.appendChild(textArea);
+    document.addEventListener('copy', onCopy, true);
+    try {
+      textArea.focus({ preventScroll: true });
+      textArea.select();
+      copied = document.execCommand('copy') && copied;
+    } catch (_) {
+      copied = false;
+    } finally {
+      document.removeEventListener('copy', onCopy, true);
+      textArea.remove();
+      if (activeElement && activeElement.isConnected) activeElement.focus({ preventScroll: true });
+      if (selection) {
+        selection.removeAllRanges();
+        ranges.forEach(function(range) { selection.addRange(range); });
+      }
+    }
+    if (!copied) await copyTextToClipboard(text);
+  }
 
   async function copyTextToClipboard(text) {
     if (navigator.clipboard && window.isSecureContext) {
@@ -26401,6 +27796,10 @@ ${selector} .arrowheadPath {
   }
 
   function showCopiedMessage() {
+    if (copyMarkdownFeedback) {
+      clearTimeout(copyMarkdownFeedback.timer);
+      copyMarkdownFeedback.restore();
+    }
     const icon = copyMarkdownButton.querySelector('i');
     const label = copyMarkdownButton.querySelector('.btn-text');
     const originalIconClass = icon ? icon.className : '';
@@ -26412,12 +27811,19 @@ ${selector} .arrowheadPath {
     copyMarkdownButton.setAttribute('title', 'Copied');
     copyMarkdownButton.setAttribute('aria-label', 'Copied');
 
-    setTimeout(() => {
+    const restore = function() {
       if (icon) icon.className = originalIconClass;
       if (label) label.textContent = originalLabel;
       copyMarkdownButton.setAttribute('title', originalTitle);
       copyMarkdownButton.setAttribute('aria-label', originalAriaLabel);
-    }, 2000);
+    };
+    copyMarkdownFeedback = {
+      restore: restore,
+      timer: setTimeout(function() {
+        restore();
+        copyMarkdownFeedback = null;
+      }, 2000)
+    };
   }
 
   // ============================================
@@ -27041,9 +28447,8 @@ ${selector} .arrowheadPath {
     viewModeButtons.forEach(function(action) { actions.push(action); });
     mobileViewModeButtons.forEach(function(action) { actions.push(action); });
     if (markdownFormatToolbar) {
-      markdownFormatToolbar.querySelectorAll('button').forEach(function(action) { actions.push(action); });
+      markdownFormatToolbar.querySelectorAll('button:not([data-md-action="fullscreen"])').forEach(function(action) { actions.push(action); });
       markdownFormatToolbar.classList.toggle('is-release-notes-disabled', releaseNotesActive);
-      markdownFormatToolbar.setAttribute('aria-disabled', releaseNotesActive ? 'true' : 'false');
     }
 
     actions.forEach(function(action) {
@@ -27159,7 +28564,7 @@ ${selector} .arrowheadPath {
       }
     });
 
-    [exportMd, mobileExportMd, copyMarkdownButton].forEach(function(button) {
+    [exportMd, mobileExportMd, copyMarkdownButton, mobileCopyMarkdownButton].forEach(function(button) {
       if (!button) return;
       if (snapshotViewOnly) {
         if (button.dataset.shareSnapshotSourceDisabled !== 'true') {
@@ -29398,15 +30803,7 @@ ${selector} .arrowheadPath {
 
     if (isCmdOrCtrl && e.shiftKey && !e.altKey && key === 'c') {
       e.preventDefault();
-      if (isReleaseNotesActive()) {
-        announceToScreenReader('Release notes do not expose Markdown source.');
-        return;
-      }
-      const focusedEditor = document.activeElement === documentSplitEditor ? documentSplitEditor : markdownEditor;
-      const selected = focusedEditor.value.slice(focusedEditor.selectionStart, focusedEditor.selectionEnd);
-      copyTextToClipboard(selected || focusedEditor.value)
-        .then(function() { announceToScreenReader(selected ? 'Selected Markdown copied.' : 'Markdown copied.'); })
-        .catch(function(error) { console.warn('Copy Markdown shortcut failed:', error); });
+      copyFullDocumentMarkdown();
       return;
     }
 
@@ -29462,16 +30859,6 @@ ${selector} .arrowheadPath {
     if (isCmdOrCtrl && !e.shiftKey && key === 's') {
       e.preventDefault();
       exportMd.click();
-    }
-    if (isCmdOrCtrl && key === 'c') {
-      const activeEl = document.activeElement;
-      const isTextControl = activeEl && (activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT");
-      const hasSelection = window.getSelection && window.getSelection().toString().trim().length > 0;
-      const editorHasSelection = markdownEditor.selectionStart !== markdownEditor.selectionEnd;
-      if (!isTextControl && !hasSelection && !editorHasSelection) {
-        e.preventDefault();
-        copyMarkdownButton.click();
-      }
     }
     // Story 1.2: Only allow sync toggle shortcut when in split view
     if (isCmdOrCtrl && e.shiftKey && key === 's') {
@@ -31947,42 +33334,6 @@ ${selector} .arrowheadPath {
     }, 50);
   }
 
-  // Visual skeleton loader generator for emoji list
-  function renderEmojiSkeletons() {
-    const grid = document.getElementById('emoji-modal-grid');
-    if (!grid) return;
-    // PERF-007: Clear elements using textContent
-    grid.textContent = '';
-    const fragment = document.createDocumentFragment();
-    for (let i = 0; i < 18; i++) {
-      const item = document.createElement('div');
-      item.className = 'emoji-item skeleton-placeholder';
-      item.setAttribute('aria-hidden', 'true');
-      item.style.border = '1px solid var(--border-color)';
-      item.style.borderRadius = '10px';
-      item.style.padding = '10px';
-      item.style.display = 'flex';
-      item.style.flexDirection = 'column';
-      item.style.alignItems = 'center';
-      item.style.gap = '8px';
-
-      const preview = document.createElement('span');
-      preview.className = 'emoji-preview skeleton-circle';
-      item.appendChild(preview);
-
-      const shortcodeRow = document.createElement('div');
-      shortcodeRow.className = 'emoji-shortcode';
-      const code = document.createElement('span');
-      code.className = 'skeleton-text';
-      code.style.width = '60px';
-      shortcodeRow.appendChild(code);
-      item.appendChild(shortcodeRow);
-
-      fragment.appendChild(item);
-    }
-    grid.appendChild(fragment);
-  }
-
   // Visual skeleton loader generator for GitHub file list tree
   function renderGitHubImportTreeSkeleton() {
     if (!githubImportTree) return;
@@ -32139,6 +33490,17 @@ ${selector} .arrowheadPath {
       activate: releaseNotesLaunch.activate
     });
   }
+
+  // Initialize Visual Library Settings (Issue #129)
+  window.renderMarkdown = renderMarkdown;
+  populateVisualSettingsOptions();
+  syncVisualSettingsUI();
+  if (window.visualSettingsStore) {
+    const initialVisualSettings = window.visualSettingsStore.getSettings();
+    // Optional theme/font downloads must not delay workspace readiness.
+    applyVisualSettings(initialVisualSettings, '*');
+  }
+
   document.documentElement.dataset.appReady = 'true';
   window.dispatchEvent(new Event('markdown-viewer:ready'));
 });

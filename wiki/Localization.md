@@ -52,7 +52,7 @@ When a user picks a language from the dropdown, the app saves `app-lang` and upd
 
 ## Public Search Content
 
-`seo/locales.mjs` defines canonical URLs, metadata, and reciprocal language alternates. `seo/welcome-content.mjs` contains the public introduction and starter text for all 15 languages. `seo/server-render.mjs` puts that introduction in the visible preview and prepares the translated starter for new visitors. `assets/seo-metadata.mjs` provides the equivalent browser fallback on static hosts and keeps metadata synchronized after a language change.
+`seo/locales.mjs` defines canonical URLs, metadata, and reciprocal language alternates. `seo/welcome-content.mjs` contains the public introduction and starter text for all 15 languages. `seo/server-render.mjs` puts that introduction in the preview's JavaScript-disabled fallback and prepares the translated starter for new visitors. With JavaScript enabled, the editor and preview show matching loading skeletons, and Explorer shows file placeholders until workspace data is ready. `assets/seo-metadata.mjs` prepares the translated starter on static hosts and keeps metadata synchronized after a language change.
 
 The English starter retains the full feature demonstration. The translated starters explain editing, imports, preview, export, sharing, local storage, and backups, with code, math, and Mermaid examples. Changing the interface language never translates or overwrites saved documents. Translations should receive native-speaker review as terminology evolves.
 
@@ -85,18 +85,7 @@ The runtime also supports numbered templates such as `{{0}} files`. If a catalog
 
 ## Contributor Checklist
 
-- Add or update visible English source text first.
-- Regenerate catalogs from the repository root with `node assets/i18n/generate-ui-locales.mjs`.
-- Run `node assets/i18n/audit-ui-locales.mjs` and resolve every reported catalog, key, placeholder, terminology, or encoding problem.
-- Review every new translation in context; use curated overrides where literal machine translation is unclear.
-- Keep all locale catalogs on the same key set as `en.json`.
-- Run the desktop prepare step so bundled catalogs match the web app.
-- Check desktop and mobile menus, context menus, modal buttons, validation messages, Share Snapshot, Live Share, and `?lang=` URLs.
-- Update the terminology tables on this page when a named concept or interface label changes.
-- For documentation, finalize `README.md` before synchronizing the four localized READMEs.
-- Preserve code, commands, paths, URLs, routes, configuration keys, library names, Markdown syntax, and Git branch names.
-- Verify localized language navigation, relative paths, anchors, tables, code fences, heading length, and native grammar.
-- Record a section for native-speaker review when technical meaning cannot be translated confidently.
+Follow [Translation Contributions](../CONTRIBUTING.md#translation-contributions) in the contributing guide. The terminology and implementation reference remain on this page.
 
 ## Terminology Glossary
 
@@ -123,6 +112,20 @@ Use these terms in Markdown Viewer documentation and translation reviews. The Ja
 | Favorites | お気に入り | 즐겨찾기 | 收藏夹 | 我的最愛 |
 | Local storage | ローカルストレージ | 로컬 저장소 | 本地存储 | 本機儲存空間 |
 | Temporary tab | 一時タブ | 임시 탭 | 临时标签页 | 暫存分頁 |
+
+### Preview Styling
+
+| English | Japanese | Korean | Simplified Chinese | Traditional Chinese |
+| :--- | :--- | :--- | :--- | :--- |
+| Preview Styling | プレビューのスタイル | 미리보기 스타일 | 预览样式 | 預覽樣式 |
+| Code theme | コードのテーマ | 코드 테마 | 代码主题 | 程式碼主題 |
+| Math font | 数式のフォント | 수식 글꼴 | 公式字体 | 公式字型 |
+| Diagram theme | 図のテーマ | 다이어그램 테마 | 图表主题 | 圖表主題 |
+| Diagram style | 図のスタイル | 다이어그램 스타일 | 图表样式 | 圖表樣式 |
+| Emoji skin tone | 絵文字の肌の色 | 이모지 피부색 | 表情肤色 | 表情符號膚色 |
+| Reset defaults | 既定に戻す | 기본값 복원 | 恢复默认 | 還原預設 |
+
+Font families and named code palettes retain their original names in every language.
 
 ### Sharing, Privacy, and Access
 
@@ -198,4 +201,4 @@ Use these terms in Markdown Viewer documentation and translation reviews. The Ja
 
 Localization is local. The app does not send document text or UI text to machine translation APIs.
 
-Related pages: [Contributing](Contributing.md) and [Documentation Home](Home.md).
+Related pages: [Contributing](../CONTRIBUTING.md) and [Documentation Home](Home.md).

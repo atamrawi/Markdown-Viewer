@@ -20,6 +20,16 @@ Use the view buttons to switch between Editor, Split, and Preview. Split view is
 
 To compare or edit two files, open a file menu and choose **Open in split view**, then select the second document. A shared control switches both sides between Edit and Preview. Preview mode supports Markdown, math, diagrams, maps, STL, and ABC rendering. Use the combined tab menu to exit this view.
 
+## Fullscreen on Safari and Mobile
+
+Select **Fullscreen** in the formatting toolbar (scroll the toolbar horizontally on narrow screens), or use **F11** / **Cmd+Option+F** where the browser permits these shortcuts.
+
+- Desktop browsers and supported iPad Safari versions use native fullscreen. Safari versions before 16.4 use its prefixed API.
+- On browsers without page fullscreen, including iPhone Safari, the button opens **Expanded view**. This hides the app header and fits the workspace to the visible viewport as the window, orientation, or keyboard changes. Safari's address and navigation bars remain under the browser's control.
+- Select **Exit expanded view** or press **Escape** to restore the normal layout. If a dialog has focus, Escape closes it first. The exit button stays available after switching to Release Notes or closing all tabs.
+
+Native page fullscreen on iPhone depends on browser support and cannot be enabled by a website fix. WebKit tracks it in [bug 206854](https://bugs.webkit.org/show_bug.cgi?id=206854); [Safari 16.4's release announcement](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/#fullscreen-api) describes support on macOS and iPadOS.
+
 ## Document Outline
 
 Select the **book-text** button to open **Document Outline**. The formatting toolbar places these controls in order: **Emoji | Find & Replace | Full Screen | Document Outline**. On narrow screens, scroll the toolbar horizontally to reach them. The right sidebar lists the current document's H1–H6 headings in a nested tree, with indentation and subtle hierarchy guides. It updates automatically as you edit, import, or switch documents. Headings inside code blocks do not appear.
@@ -50,14 +60,16 @@ The outline is generated locally from the current document and is not saved sepa
 - When multiple files are selected, dragging any selected file moves the full selection and the drag preview shows the file count. Expanded folders accept drops across their visible contents, not only on the folder name.
 - Drag a file row onto a folder or workspace to move it. Use **Move to…** from the file menu as the keyboard and touch-friendly alternative. Dropping local Markdown files onto a folder imports them there.
 - Use **All files** for the hierarchy, **Recent** for recently opened or edited files, and **Favorites** for starred files.
+- Document titles, folder names, and Move-dialog destinations use natural numeric ordering, so names such as `Untitled 2` appear before `Untitled 10`.
 - On desktop, one click selects a sidebar document and a double click opens it. On touch layouts, one tap opens it and closes the drawer.
 - The active Document is the one shown in the primary Editor/Preview, used by formatting, review, import-into-current, export, Share Snapshot, and Live Share actions. Opening a second Document in the two-Document view does not make it the active Document.
 - Each document menu supports Open, Rename, Duplicate, Favorites, Move, Open in split view, Download Markdown, and Delete. The tab strip supports quick switching, drag-to-reorder, and close commands for one or several tabs.
+- To close a document tab, point at it and **press the mouse's scroll wheel down (middle-click)**. The scroll wheel acts as the middle mouse button on a typical mouse. Pressing it is different from rotating it: rotating the wheel over the tab strip scrolls through tabs without closing them. You can also use the tab's **Close (X)** button or its context-menu close commands.
 - Ctrl/Cmd-click selects separate Explorer items; Shift-click or Shift+Arrow selects a range. When only files are selected, the context menu can **Open all** or **Move to…**. Deleting selected files moves them directly to Trash; deleting a selection that contains folders still asks for confirmation.
 - Deleting a file moves it directly to **Trash** without confirmation. Open Trash from the Explorer toolbar or Workspace settings to restore a selected item, permanently delete a selected item after confirmation, or empty all items after confirmation. Valid deleted items are permanently removed automatically after 30 days; records with missing or corrupt retention metadata are kept for manual review instead of being auto-purged.
 - Deleting a folder tree moves all files inside it to the workspace root before removing the folders.
 - Dragging or selecting several local Markdown files shows a small import-progress popup at the bottom of the screen until processing finishes.
-- Closing the last normal tab resets to a clean document.
+- Closing a normal tab keeps its saved Document and draft in Explorer. Closing all tabs leaves an empty editor; select a Document in Explorer to reopen it.
 - Normal tabs autosave as independent browser records or desktop vault files. Only the opened document content is loaded.
 - Markdown Viewer does not impose a document-count limit; available browser quota or filesystem capacity is the practical limit.
 - Temporary Share Snapshot and Live Share tabs are not saved to the recipient's workspace.
@@ -82,6 +94,29 @@ The toolbar can:
 - Open Find and Replace, Help, About, and fullscreen.
 
 The editor also supports list continuation on Enter, two-space indent on Tab, outdent on Shift+Tab, and custom undo/redo. View-only shared tabs block editing actions and keep reading, find, help, and fullscreen available.
+
+With the Editor focused, **Page Up** and **Page Down** scroll smoothly without shifting the workspace sideways. Hold **Shift** while paging to extend the text selection. This also works in the secondary document Editor. The app respects your device's reduced-motion preference and keeps synchronized panes aligned during paging.
+
+### Slash Commands
+
+Type `/` at the very start of an Editor line to open **Insert block**. Type a command name to filter the list, use **Arrow Up/Down** to choose, press **Enter** to run it, or press **Escape** to close the menu. You can also click or tap a command.
+
+The menu includes headings, paragraphs, lists, quotes, horizontal rules, code and terminal blocks, math, links, references, date/time, alerts, tables, diagrams, and images/media. Reference, alert, table, diagram, and media commands open their existing chooser so you can finish the insertion. Typing `/` after indentation or other text, inside a URL, or while composing text with an IME does not open the menu. Slash commands work in either Editor of the two-Document view and follow RTL placement.
+
+### Copying a Document
+
+Use **Copy Markdown** in the navbar or mobile menu, or press **Ctrl/Cmd+Shift+C**, to copy the entire active document's raw source. This command ignores partial selections and works in Editor, Preview, and Split modes. With two documents side by side, first click or focus the document you want to copy; toolbar clicks retain that target.
+
+To copy a selection, right-click an Editor or Preview, or open its context menu with a long press on touch devices, and choose **Select All**. It selects the entire document in that pane using the browser's text selection. With a mouse or keyboard, the menu closes and focus returns to the pane: press **Ctrl/Cmd+C**, or reopen the menu and choose **Copy**. With touch, the menu stays available after Select All so you can tap **Copy**, which closes it. You can also press **Ctrl/Cmd+A** while a pane has focus. This works in either pane of the two-Document view and in read-only documents.
+
+On touch devices, tapping the surrounding background dismisses the menu while keeping the text selected. Tap the highlighted text to reopen the menu and choose **Copy**. This also works with partial selections. Swiping still scrolls, and tapping unselected text lets you change the selection or position the Editor cursor normally. Touch presses on selected text do not drag the document text.
+
+- **Editor:** Copy provides the selected raw Markdown, including Markdown syntax. Paste inserts clipboard text at the cursor or replaces the selection; rich text is not automatically converted into Markdown.
+- **Preview:** Copy provides formatted HTML and a plain-text alternative. Paste into a rich-text app such as Google Docs to retain supported headings, emphasis, links, lists, tables, and code blocks. Partial selections and the browser's native Copy command also retain formatting. Preview toolbars and action buttons are excluded.
+
+Ordinary **Copy** or **Ctrl/Cmd+C** with no selection leaves the clipboard unchanged. Preview is read only: it supports selection and copying, but Paste, Cut, and typing do not change the document.
+
+Copying runs locally through the system clipboard. The receiving app determines which formatting it accepts; plain-text fields and **Paste without formatting** use the text alternative. For example, copying `**Hello**` from the Editor pastes those Markdown characters, while copying **Hello** from the Preview supplies bold text plus the plain-text alternative `Hello`. Browsers without rich clipboard support fall back to plain text.
 
 ## Comments
 

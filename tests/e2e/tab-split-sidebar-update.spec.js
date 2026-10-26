@@ -83,16 +83,26 @@ test('tab bar uses standard file, menu, and close controls', async ({ page }) =>
   expect(sizing.sidebar).toEqual(sizing.toolbar);
 });
 
-test('right-clicking tab does not open custom context menu', async ({ page }) => {
+test('right-click tab menu exposes split and scoped close commands', async ({ page }) => {
   await page.locator('#tab-new-btn').click();
   await page.locator('#tab-new-btn').click();
   const middleTab = page.locator('#tab-list .tab-item').nth(1);
   await middleTab.click({ button: 'right' });
-  await expect(page.locator('[data-tab-context-menu="true"]')).toHaveCount(0);
 
+  const menu = page.locator('[data-tab-context-menu="true"]');
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.tab-menu-item')).toHaveText([
+    'Open in split view',
+    'Close',
+    'Close others',
+    'Close to the right',
+    'Close to the left',
+    'Close all'
+  ]);
+  await page.keyboard.press('Escape');
   const tabListBox = await page.locator('#tab-list').boundingBox();
   await page.locator('#tab-list').click({ button: 'right', position: { x: tabListBox.width - 4, y: tabListBox.height / 2 } });
-  await expect(page.locator('[data-tab-context-menu="true"]')).toHaveCount(0);
+  await expect(page.locator('[data-tab-context-menu="true"]')).toBeVisible();
 });
 
 test('split view uses one combined tab and offers only edit or preview modes', async ({ page }) => {
@@ -112,8 +122,8 @@ test('split view uses one combined tab and offers only edit or preview modes', a
   await page.locator('#rename-modal-confirm').click();
   const secondTabId = await page.locator('#tab-list .tab-item.active').getAttribute('data-tab-id');
 
-  await firstTab.locator('.tab-menu-btn').click();
-  await page.locator('.tab-menu-dropdown.open [data-action="split"]').click();
+  await firstTab.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Open in split view' }).click();
   await page.locator('#document-split-destination').selectOption(secondTabId);
   await page.locator('#document-split-modal-confirm').click();
 
@@ -157,8 +167,8 @@ test('split view uses one combined tab and offers only edit or preview modes', a
   await page.locator(`.document-tree-row[data-document-id="${secondTabId}"] .document-tree-main`).click();
   await expect(page.locator('#markdown-editor')).toHaveValue('# Edited in split');
   await expect(page.locator('#document-split-pane')).toBeVisible();
-  await page.locator('#tab-list .tab-item.is-document-split .tab-menu-btn').click();
-  await page.locator('.tab-menu-dropdown.open [data-action="split-close"]').click();
+  await page.locator('#tab-list .tab-item.is-document-split').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Exit split view' }).click();
   await expect(page.locator('#document-split-pane')).toBeHidden();
   await expect(page.locator('.view-toolbar [data-view-mode="split"]')).toBeEnabled();
 });
@@ -567,8 +577,8 @@ test('Files tree highlights only the active file and draws nesting guides', asyn
 test('close all produces an empty editor state without deleting files', async ({ page }) => {
   await page.locator('#tab-new-btn').click();
   const fileCount = await page.locator('.document-tree-row[data-document-id]').count();
-  await page.locator('#tab-list .tab-item.active .tab-menu-btn').click();
-  await page.locator('.tab-menu-dropdown.open [data-action="all"]').click();
+  await page.locator('#tab-list .tab-item.active').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Close all' }).click();
 
   await expect(page.locator('#tab-list .tab-item')).toHaveCount(0);
   await expect(page.locator('#no-open-document')).toBeVisible();
@@ -639,9 +649,9 @@ test('close all batches 400 open tabs without blocking the page', async ({ page 
   await page.reload();
   await expect(page.locator('#tab-list .tab-item')).toHaveCount(seededCount + 1);
 
-  await page.locator('#tab-list .tab-item.active .tab-menu-btn').click();
+  await page.locator('#tab-list .tab-item.active').click({ button: 'right' });
   const startedAt = Date.now();
-  await page.locator('.tab-menu-dropdown.open [data-action="all"]').click();
+  await page.getByRole('menuitem', { name: 'Close all' }).click();
   await expect(page.locator('#tab-list .tab-item')).toHaveCount(0);
   expect(Date.now() - startedAt).toBeLessThan(3000);
   await expect(page.locator('#no-open-document')).toBeVisible();

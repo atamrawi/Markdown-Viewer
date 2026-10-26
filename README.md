@@ -56,9 +56,9 @@ Turn a document into a Share Snapshot link for quick handoffs, or start access-c
 
 ## Highlights
 
-- **Workspace and documents:** organize documents in nested folders with per-document IndexedDB storage on the web; use Recent, Favorites, search, tabs, bulk actions, an encrypted Secret Workspace, and a 30-day Trash for recoverable normal and encrypted files.
+- **Workspace and documents:** organize naturally sorted documents and folders with per-document IndexedDB storage on the web; use Recent, Favorites, search, tabs, bulk actions, an encrypted Secret Workspace, and a 30-day Trash for recoverable normal and encrypted files. Middle-click a tab to close it without deleting its saved document.
 - **Backup and restore:** export or import a folder-preserving workspace ZIP; encrypted Secret Workspace files are optional, while trash and desktop history stay outside the backup.
-- **Editing and review:** switch among Editor, Split view, and Preview; use formatting tools, an 8×8 quick table selector, productivity shortcuts, custom undo/redo, Find and Replace, LTR/RTL direction, per-document Preview positions, selection-anchored comments, and threaded replies.
+- **Editing and review:** switch among Editor, Split view, and Preview; type `/` at the start of a line for searchable block commands; use formatting tools, an 8×8 quick table selector, productivity shortcuts, custom undo/redo, Find and Replace, LTR/RTL direction, smooth Page Up/Down navigation, pane-scoped Select All, rich Preview copying, selection-anchored comments, and threaded replies.
 - **Markdown rendering:** use CommonMark-style Markdown, GitHub-Flavored Markdown (GFM), tables, task lists, alerts, footnotes, definition lists, syntax highlighting, sanitized HTML, and MathJax.
 - **Document Outline:** use the book-text button after Emoji, Find & Replace, and Full Screen to open a resizable right sidebar with collapsible heading branches, a Collapse/Expand All control, and section navigation in Editor, Preview, and Split modes. Copy a GitHub-compatible Markdown TOC with configurable heading depth, bulleted/numbered links or plain text, optional level normalization, and a collapsible wrapper. The outline follows the current document and shares Find & Replace's width and header styling.
 - **Localized discovery:** open any of 15 language URLs with translated initial content and a localized starter document before JavaScript runs; changing the interface language preserves user-authored Markdown and Preview typography.
@@ -150,7 +150,9 @@ Remote renderer services receive the source of the diagram they render. Do not s
 | Install or deploy the product | [Installation](wiki/Installation.md) |
 | Configure storage, renderers, and Cloudflare | [Configuration](wiki/Configuration.md) |
 | Resolve common problems | [Troubleshooting](wiki/Troubleshooting.md) and [FAQ](wiki/FAQ.md) |
-| Contribute code, documentation, or translations | [Contributing](wiki/Contributing.md) |
+| Contribute code, documentation, or translations | [Contributing](CONTRIBUTING.md) |
+| Review community expectations | [Code of Conduct](CODE_OF_CONDUCT.md) |
+| Report a vulnerability or check security support | [Security Policy](SECURITY.md) |
 | Maintain translations and approved multilingual terms | [Localization and Terminology](wiki/Localization.md) |
 
 ## Important Limits
@@ -191,9 +193,7 @@ Markdown Viewer grows through contributions from its community.
 
 ## Contributing and Support
 
-Read [Contributing](wiki/Contributing.md) before opening a pull request. Use the [issue tracker](https://github.com/ThisIs-Developer/Markdown-Viewer/issues) for reproducible bugs and focused feature requests.
-
-Do not publish vulnerability details in a normal issue. Use the repository's private security-reporting channel when available, as described in [Contributing: Security Reports](wiki/Contributing.md#security-reports).
+See the [contributing guide](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and [Security Policy](SECURITY.md). The [issue tracker](https://github.com/ThisIs-Developer/Markdown-Viewer/issues) is available for bugs and feature requests.
 
 ## License
 

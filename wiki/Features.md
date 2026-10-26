@@ -40,14 +40,17 @@ Release-note tabs are temporary and excluded from document storage. Document-onl
 
 Users can work with multiple documents at once.
 
-- Every existing saved document is migrated into **Workspace**. The two workspace roots are fixed, but users can create nested folders inside either root.
+- Every existing saved document is migrated into **Workspace**, identified by the briefcase icon. The two workspace roots are fixed, but users can create nested folders inside either root.
 - Secret Workspace encrypts its files and folder names locally with a password-derived AES-GCM key. It remains locked after reload, the key stays in memory only while unlocked, and a forgotten password cannot be recovered. Resetting Secret Workspace permanently deletes its encrypted payload.
 - The sidebar has explicit **New file** and **New folder** actions for the selected location. Files can be dragged onto another folder or workspace; the Move dialog remains available for keyboard and touch workflows.
 - Deleting a folder tree moves every file inside it to the workspace root before removing the folders, so document content is not lost.
 - New files can be created from the sidebar, tab bar, mobile menu, imports, shared snapshots, and Live Share joins. Multi-file imports show a compact bottom progress indicator.
 - The sidebar supports file open, rename, duplicate, favorite, move, Markdown download, and delete actions. Recent and Favorites are filtered references to the original files, not copies.
 - Multi-selected files can be opened or moved together. Dragging any selected file moves the complete file selection, and expanded folders accept a drop across their visible contents instead of only on the folder label. Deleting selected files moves them directly to Trash; a mixed selection containing folders asks for confirmation and returns files inside removed folders to the workspace root.
+- Document titles, folder names, and Move-dialog destinations use natural numeric ordering. For example, `Untitled 2` appears before `Untitled 10` instead of being sorted lexically after it.
 - Tabs can be reordered by drag and drop. Their menus support rename, duplicate, favorite, two-document split, Markdown download, and close; the tab context menu also provides Close others, Close to the right, Close to the left, and Close all.
+- Both documents in a two-document split use matching Editor and Preview pane spacing. Empty Editors show the same typing, paste, and import hint.
+- **Scroll-wheel button (middle-click):** Point at a document tab and press the mouse's scroll wheel down to close that tab. Its saved Workspace document and draft remain available in Explorer. Rotating the wheel over the tab strip scrolls through tabs instead. Pressing the wheel on a tab closes it rather than starting browser autoscroll; left-click activation and right-click menus are unchanged.
 - Right-clicking the no-document workspace opens the same five Quick Start commands shown in the empty state. Right-clicking an editor or preview surface opens New file, selection-aware clipboard commands, and the current document's management actions; unavailable editing commands remain visible but disabled in preview and read-only contexts.
 - Hovering a tab shows its containing folder path and filename. Files stored directly at the Workspace root show only their filename.
 - The app does not impose a document-count limit. Available browser quota or filesystem capacity is the practical limit.
@@ -113,11 +116,26 @@ The formatting toolbar inserts or transforms Markdown at the current selection. 
 - Alignment buttons insert left, center, or right aligned HTML blocks.
 - The direction toggle switches between left-to-right and right-to-left content direction.
 - Link, image, reference, emoji, symbol, alert, and diagram buttons open focused modals. The table action opens an accessible 8×8 quick selector with pointer and arrow-key navigation; **Custom table** accepts dimensions up to 20×20, with the selected row count including the header.
+- **GitHub Emojis** groups the compact picker into smileys, people, nature, food, travel, activities, objects, symbols, flags, and GitHub extras. Search spans every category using English names, aliases, keywords, or an emoji. Aliases share one tile; searching an exact alias preserves that shortcode when selected. Select several emojis, remove them from the selection tray, copy the selection, or insert them in selection order. Selections stay intact while searching or switching categories. Arrow keys browse categories and emoji tiles; Space or Enter selects, and Escape closes the dialog. On narrow screens, swipe the category bar to reach more groups. Category metadata is bundled with the app; the emoji list and images still require GitHub access. Failed loading can be retried without closing the dialog.
 - Date/time inserts a local timestamp.
-- Fullscreen uses the browser Fullscreen API when available.
+- Fullscreen uses the browser Fullscreen API when available, including the prefixed API on older Safari/iPadOS. If the API is unavailable or the request fails, **Expanded view** hides the app header and fits the workspace to the visible viewport. A notification explains that browser controls remain visible. Use the same button or **Escape** to exit; dialogs handle Escape first. Fullscreen remains available in Release Notes and with no open documents so the exit button stays usable. The expanded layout does not affect printing or document contents. See [Fullscreen on Safari and mobile](Usage-Guide.md#fullscreen-on-safari-and-mobile) for platform limits.
 - Find and Replace and Fullscreen are direct formatting-toolbar actions. About Markdown Viewer opens from the header or mobile menu.
 
+The emoji picker shows a spinner while fetching its catalog, then neutral loading tiles until each GitHub image is ready. It loads images near the visible rows and reuses loaded tiles as you switch categories or search. The picker and selection tray follow the skin tone chosen in **Preview Styling**, using the same supported emoji and alias rules as the document preview. Changes and resets refresh the artwork without clearing your selection or search. Inserted shortcodes continue to follow the document's styling preference. If a skin-tone image is unavailable, a native emoji in the selected tone appears after loading fails. Other unavailable images show an error icon; their named shortcodes can still be selected.
+
+![Emoji picker with categories and selected emojis](images/emoji-picker-desktop.png)
+
 View-only Share Snapshot tabs and view-only Live Share participant tabs block mutating tools and announce that the editor is read-only. Non-mutating actions such as fullscreen, find, help, and info remain available.
+
+### Slash Command Menu
+
+Type `/` at the start of an Editor line to open a searchable block-command menu. Continue typing to filter, use the arrow keys to move, press **Enter** to run the selected command, or press **Escape** to close it. Pointer selection is also supported.
+
+The menu shares the application's compact dropdown typography, spacing, surfaces, and Lucide icons in light and dark themes. Heading symbols match the toolbar's text-style menu. Its height adapts to the space above or below the typing line, keeping your text visible while the command list scrolls.
+
+Commands cover headings, paragraphs, lists, quotes, horizontal rules, code and terminal blocks, math, links, references, date/time, alerts, tables, diagrams, and images/media. Commands that need more information open the same reference, alert, table, diagram, or media chooser used by the toolbar. Date/time uses the toolbar format (date, 12-hour time, and weekday). Uploaded media is saved in the document where the command started; insertion is cancelled if that document changes during upload.
+
+The menu opens only for a literal slash at column zero. A slash after other text or indentation, inside a URL, during IME composition, or outside an Editor remains normal text. The menu follows the active primary or secondary Editor, closes when the document or focus context changes, exposes listbox state to assistive technology, and positions correctly for RTL documents.
 
 ## Custom Undo and Redo
 
@@ -411,11 +429,14 @@ Privacy implications:
 
 ## Clipboard and Copy Behavior
 
-- Copy Markdown copies the raw Markdown from the editor.
-- `Ctrl+C` or `Cmd+C` respects selected text in inputs/textareas and selected page text.
-- When no text selection is active, the app can copy the full Markdown document.
+- **Copy Markdown** in the navbar or mobile menu, and **Ctrl/Cmd+Shift+C**, copy the entire active document as raw Markdown in every view, even when only part of it is selected. In a two-Document view, they use the document whose Editor or Preview was last focused; clicking toolbar controls keeps that document as the target.
+- The Editor and Preview context menus include **Select All** for that pane's complete document, including either side of a two-Document view. With a mouse or keyboard, the menu closes after selection and focus returns to the pane. With touch, Select All keeps the menu available for the next tap on **Copy**; Copy closes it. **Ctrl/Cmd+A** also selects within the focused pane. Read-only documents support selection and copying.
+- On touch devices, dismissing the menu onto the surrounding background preserves the selection. Tapping highlighted text reopens the menu, including for partial selections and secondary document panes. Swiping scrolls, tapping unselected text keeps normal selection/cursor behavior, and touching selected text does not start a text drag.
+- Preview Copy provides formatted HTML and plain text for pasting into apps such as Google Docs. Headings, emphasis, links, lists, tables, and code are retained where the receiving app supports them. Partial selections and native Copy use the same rich content; preview controls are excluded. Editor Copy remains raw Markdown.
+- **Copy** and **Ctrl/Cmd+C** copy only the selection in its original context: raw source in an Editor, formatted content in a Preview, and native text in other controls. With no selection, ordinary Copy leaves the clipboard unchanged.
+- Editor **Paste** and **Ctrl/Cmd+V** insert clipboard text at the cursor or replace the selection; they do not automatically convert rich text to Markdown. Preview supports selection and copying without allowing Paste, Cut, or typing to modify the document. Existing image-paste actions in the Editor are unchanged.
 - Diagram and ABC copy actions attempt to write PNG image data to the clipboard.
-- Clipboard APIs require browser permission and a secure context. The app falls back to a temporary textarea for text copying when needed.
+- Clipboard APIs require browser permission and a secure context. Rich copying falls back to a copy event when the asynchronous HTML clipboard API is unavailable, then to plain text if needed. Copying is local to the system clipboard.
 
 ## Themes, Direction, and Localization
 
@@ -517,6 +538,7 @@ The desktop build wraps the same app in Neutralino.
 Desktop-specific behavior:
 
 - Uses a native window with minimum size 400 x 200 and default size 1280 x 720.
+- Uses the project artwork for the desktop window and packaged Windows executable icon.
 - Uses one-time token security.
 - Logging is disabled in the current config.
 - Native APIs are allowlisted instead of fully open.

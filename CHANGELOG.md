@@ -5,6 +5,26 @@ Non-code commits (documentation, planning, README-only updates) are excluded.
 
 ## Unreleased
 
+- Fixed the emoji picker and selection tray to follow the skin tone selected in Preview Styling, including live changes, saved preferences, and resetting to default yellow. Shortcode insertion and unsupported emojis retain their existing behavior.
+- Redesigned the emoji picker with a compact grid, nine familiar categories plus GitHub extras, search across categories, and a removable selection tray. Selections now survive searches and category changes, with keyboard navigation, copying, and retry support. Images load near the visible rows with a neutral shimmer and are reused when revisiting categories, without flashing a different emoji style first.
+- Added compact info hints for the Mermaid diagram controls and emoji skin tones in Preview Styling, available on hover, keyboard focus, and tap.
+- Simplified **Preview Styling** into five compact controls under Workspace settings and removed its separate navbar shortcut.
+- Kept math rendering available during font downloads, prevented older requests from overriding the latest font selection, and restored fallback, retry, and Reset after font-loading failures.
+
+---
+
+## v3.10.4
+
+- **Description:** Added faster keyboard-first authoring and dependable rich-copy, selection, navigation, and fullscreen behavior, with practical Explorer, tab, and desktop packaging improvements.
+  - **Slash Command Authoring:** Added a searchable line-start `/` menu for headings, lists, quotes, code, math, links, alerts, tables, diagrams, media, and other blocks. It supports keyboard and pointer selection, hands off to existing choosers, avoids URLs and indented or mid-line text, and handles IME input, RTL placement, document switching, and accessible listbox state.
+  - **Clipboard & Selection:** Made Copy Markdown consistently copy the complete targeted document, kept Editor selection copies as raw source, and supplied sanitized HTML plus plain text from Preview. Added pane-scoped Select All across primary, secondary, and read-only documents, with reliable touch dismissal, reopening, scrolling, and drag prevention.
+  - **Navigation & Fullscreen:** Prevented Page Up/Down from shifting the workspace sideways, restored smooth paging without replacing native caret or Shift-selection behavior, respected reduced motion, and stabilized synchronized panes. Added older Safari fullscreen support plus an explicit Expanded view fallback when native page fullscreen is unavailable or denied.
+  - **Explorer & Tabs:** Applied natural numeric ordering to document titles, folder names, and move destinations, so numbered names remain in human order. Added browser-style middle-click tab closing without activating the tab or deleting its saved document, while preserving wheel scrolling, left-click activation, and context menus.
+  - **Desktop & Quality:** Embedded the project artwork in Windows executables and desktop windows, refreshed the Workspace icon, synchronized web and Neutralino resources, maintained all 15 locale catalogs, and expanded focused and cross-browser coverage for slash commands, tab closing, paging, fullscreen, clipboard, and touch selection.
+- **Date:** 2026-10-09
+- **Commits:** `b085836eb159f6855791a13533dbe453a97488a5` through `ff0648a1a8e8b1ae3bb6189e85a2ad7dcdcb43e9`
+- **URL:** https://github.com/ThisIs-Developer/Markdown-Viewer/releases/tag/v3.10.4
+
 ---
 
 ## v3.10.3
