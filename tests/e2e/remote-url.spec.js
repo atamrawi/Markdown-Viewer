@@ -177,6 +177,72 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(errorContainer).toBeVisible();
     await expect(errorContainer.locator('.remote-url-error-title')).toHaveText('Unable to Load Document');
     await expect(errorContainer.locator('.remote-url-error-btn-primary')).toHaveText('Reload Page');
+
+    // Right-click on the error view leaves native browser context menu intact
+    const errorContextMenuPrevented = await page.locator('#markdown-preview').evaluate(el => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, clientX: 120, clientY: 160 });
+      el.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    expect(errorContextMenuPrevented).toBe(false);
+    await expect(page.locator('.document-menu-context.open')).toHaveCount(0);
+  });
+
+  test('disables custom context menu in read-only remote URL mode while keeping native browser context menu', async ({ page }) => {
+    await page.route('https://raw.githubusercontent.com/test-org/test-repo/main/docs/readonly-menu.md', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/markdown; charset=utf-8',
+        body: '# Read Only Context Menu\n\nA **bold selection** in read-only mode.'
+      });
+    });
+
+    await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/readonly-menu.md');
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+
+    const preview = page.locator('#markdown-preview');
+    await expect(preview.locator('h1')).toHaveText('Read Only Context Menu');
+
+    // Dispatch contextmenu and verify defaultPrevented is false (native menu allowed) and custom menu stays closed
+    const contextMenuPrevented = await preview.evaluate(el => {
+      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, clientX: 120, clientY: 220 });
+      el.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    expect(contextMenuPrevented).toBe(false);
+    await expect(page.locator('.document-menu-context.open')).toHaveCount(0);
+
+    // Touch tap on selected text also does not open the custom surface menu
+    await preview.locator('strong').evaluate(el => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    });
+    await preview.locator('strong').dispatchEvent('pointerdown', { pointerType: 'touch', button: 0, clientX: 100, clientY: 100 });
+    await preview.locator('strong').dispatchEvent('click', { button: 0, clientX: 100, clientY: 100 });
+    await expect(page.locator('.document-menu-context.open')).toHaveCount(0);
+  });
+
+  test('keeps custom context menu available when remote URL mode has readonly=0', async ({ page }) => {
+    await page.route('https://raw.githubusercontent.com/test-org/test-repo/main/docs/editable-menu.md', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/markdown; charset=utf-8',
+        body: '# Editable Remote Document\n\nCustom menu remains available when readonly=0.'
+      });
+    });
+
+    await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/editable-menu.md&readonly=0');
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+
+    const preview = page.locator('#markdown-preview');
+    await expect(preview.locator('h1')).toHaveText('Editable Remote Document');
+
+    await preview.dispatchEvent('pointerdown', { pointerType: 'mouse', button: 2 });
+    await preview.dispatchEvent('contextmenu', { button: 2, clientX: 120, clientY: 220 });
+    await expect(page.locator('.document-menu-context.open')).toBeVisible();
   });
 });
 

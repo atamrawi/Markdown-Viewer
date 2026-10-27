@@ -20,7 +20,7 @@
 })();
 
 document.addEventListener("DOMContentLoaded", async function () {
-  function hasRemoteUrlParameter() {
+  function getRemoteUrlParams() {
     const searchParams = new URLSearchParams(window.location.search);
     const hash = window.location.hash || '';
     let hashParams = new URLSearchParams();
@@ -29,10 +29,32 @@ document.addEventListener("DOMContentLoaded", async function () {
     } else if (hash.startsWith('#url=') || hash.startsWith('#file=') || hash.startsWith('#src=') || hash.startsWith('#md=')) {
       hashParams = new URLSearchParams(hash.slice(1));
     }
+    return { searchParams: searchParams, hashParams: hashParams };
+  }
+
+  function hasRemoteUrlParameter() {
+    const { searchParams, hashParams } = getRemoteUrlParams();
     return Boolean(
       searchParams.get('url') || searchParams.get('file') || searchParams.get('src') || searchParams.get('md') ||
       hashParams.get('url') || hashParams.get('file') || hashParams.get('src') || hashParams.get('md')
     );
+  }
+
+  function isRemoteUrlReadOnlyParameter() {
+    const { searchParams, hashParams } = getRemoteUrlParams();
+    const searchReadOnly = (searchParams.get('readonly') || '').toLowerCase();
+    const hashReadOnly = (hashParams.get('readonly') || '').toLowerCase();
+    return searchReadOnly !== '0' && searchReadOnly !== 'false' && hashReadOnly !== '0' && hashReadOnly !== 'false';
+  }
+
+  function isStandaloneReadOnlyMode() {
+    const currentActiveTab = tabs && tabs.find ? tabs.find(function(t) { return t.id === activeTabId; }) : null;
+    if (currentActiveTab && currentActiveTab.kind === REMOTE_URL_TAB_KIND) {
+      return shareSnapshotViewOnlyTabIds.has(currentActiveTab.id) || currentActiveTab.shareSnapshotMode === 'view';
+    }
+    const isStandaloneActive = document.body.classList.contains('standalone-file-mode') ||
+      document.documentElement.dataset.standaloneMode === 'true';
+    return Boolean(isStandaloneActive && hasRemoteUrlParameter() && isRemoteUrlReadOnlyParameter());
   }
 
   let remoteUrlLoaded = false;
@@ -6339,6 +6361,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
   function openDocumentTreeBackgroundContextMenu(event) {
+    if (isStandaloneReadOnlyMode()) return;
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -6383,6 +6406,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function openQuickStartContextMenu(event) {
+    if (isStandaloneReadOnlyMode()) return;
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -6573,6 +6597,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function openDocumentSurfaceContextMenu(surface, event, keepSelectionMenuOpen) {
+    if (isStandaloneReadOnlyMode()) return;
     let context = getDocumentSurfaceContext(surface);
     if (!context) return;
     lastFocusedDocumentTabId = context.tabId;
@@ -11858,7 +11883,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function openTabContextMenu(tab, point, focusTab) {
-    if (!tab) return;
+    if (!tab || isStandaloneReadOnlyMode()) return;
     closeTabMenus();
     const visibleTabs = getTabBarTabs();
     const openTabs = getOpenTabs();
@@ -12050,6 +12075,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       }, { capture: true });
 
       item.addEventListener('contextmenu', function(event) {
+        if (isStandaloneReadOnlyMode()) return;
         event.preventDefault();
         event.stopPropagation();
         openTabContextMenu(tab, { x: event.clientX, y: event.clientY }, item);
@@ -12111,6 +12137,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     };
 
     tabList.oncontextmenu = function(event) {
+      if (isStandaloneReadOnlyMode()) return;
       if (event.target.closest('.tab-item')) return;
       const activeTab = tabs.find(function(tab) { return tab.id === activeTabId && isTabOpen(tab); });
       if (!activeTab) return;
@@ -13281,7 +13308,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       let touchSelection = null;
       function beginSelectionTap(event) {
         touchSelection = null;
-        if (reviewModeActive || (event.touches && event.touches.length !== 1)) return;
+        if (reviewModeActive || isStandaloneReadOnlyMode() || (event.touches && event.touches.length !== 1)) return;
         if (event.target !== surface && event.target.closest('button, input, textarea, select, [contenteditable], [role="button"], summary')) return;
         const point = event.touches ? event.touches[0] : event;
         const snapshot = captureDocumentSurfaceSelection(surface);
@@ -13323,7 +13350,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       function finishSelectionTap(event) {
         const gesture = touchSelection;
         cancelSelectionTap();
-        if (!gesture || event.defaultPrevented || Date.now() - gesture.time > 1000) return;
+        if (isStandaloneReadOnlyMode() || !gesture || event.defaultPrevented || Date.now() - gesture.time > 1000) return;
         const snapshot = gesture.snapshot;
         // Textareas place the caret before click, so a tap outside a partial
         // selection must still be able to position the editing cursor normally.
@@ -13347,7 +13374,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         } else finishSelectionTap(event);
       }, { passive: false });
       surface.addEventListener('dragstart', function(event) {
-        if (lastPointerType === 'touch' && captureDocumentSurfaceSelection(surface)) {
+        if (!isStandaloneReadOnlyMode() && lastPointerType === 'touch' && captureDocumentSurfaceSelection(surface)) {
           // Android can turn a press on highlighted text into a native drag image.
           event.preventDefault();
         }
@@ -13355,7 +13382,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
       if (surface === markdownEditor || surface === documentSplitEditor) {
         surface.addEventListener('mousedown', function(event) {
-          if (event.button === 2 && surface.selectionStart !== surface.selectionEnd) {
+          if (!isStandaloneReadOnlyMode() && event.button === 2 && surface.selectionStart !== surface.selectionEnd) {
             event.preventDefault();
           }
         });
@@ -13370,6 +13397,11 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
       }
       surface.addEventListener('contextmenu', function(event) {
+        if (isStandaloneReadOnlyMode()) {
+          lastPointerType = '';
+          cancelSelectionTap();
+          return;
+        }
         // Chromium may emit contextmenu between a touch tap's mousedown and
         // mouseup. Wait for click so the new menu cannot swallow that mouseup
         // and immediately dismiss itself. A long press opens before touchend.
@@ -30619,7 +30651,7 @@ ${selector} .arrowheadPath {
     if (!fileUrl) return false;
 
     const requestedMode = searchParams.get('mode') || hashParams.get('mode') || 'preview';
-    const isReadOnly = searchParams.get('readonly') !== '0' && searchParams.get('readonly') !== 'false' && hashParams.get('readonly') !== '0' && hashParams.get('readonly') !== 'false';
+    const isReadOnly = isRemoteUrlReadOnlyParameter();
     const isFullscreen = ['1', 'true', 'yes'].includes((searchParams.get('fullscreen') || searchParams.get('fs') || hashParams.get('fullscreen') || hashParams.get('fs') || '').toLowerCase());
 
     document.body.classList.add('standalone-file-mode');
