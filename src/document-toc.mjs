@@ -132,3 +132,158 @@ export function generateTableOfContents(document, options = {}) {
     ? '<details>\n<summary>Table of Contents</summary>\n\n' + toc + '\n\n</details>'
     : toc;
 }
+
+function updateHtmlQuoteDepth(rawHtml, currentDepth) {
+  let depth = currentDepth;
+  const tagPattern = /<\/?(blockquote|q)\b[^>]*>/gi;
+  let match;
+  while ((match = tagPattern.exec(rawHtml || '')) !== null) {
+    const tag = match[0];
+    if (/^<\//.test(tag)) {
+      depth = Math.max(0, depth - 1);
+    } else if (!/\/>\s*$/.test(tag)) {
+      depth += 1;
+    }
+  }
+  return depth;
+}
+
+function joinSlideRawParts(parts) {
+  let out = '';
+  for (const part of parts) {
+    if (!part) continue;
+    if (out && !out.endsWith('\n') && !part.startsWith('\n')) {
+      out += '\n\n';
+    }
+    out += part;
+  }
+  return out.trim();
+}
+
+function collectSlideSlugs(blockTokens, slugStrategy) {
+  const slugger = createHeadingSlugger(slugStrategy);
+  const slugs = [];
+  function visit(list) {
+    for (const token of list || []) {
+      if (!token) continue;
+      if (token.type === 'heading') {
+        slugs.push(slugger.slug(headingText(token.tokens)));
+      } else if (token.type === 'list') {
+        (token.items || []).forEach(item => visit(item.tokens));
+      } else if (token.type === 'blockquote') {
+        visit(token.tokens);
+      }
+    }
+  }
+  visit(blockTokens);
+  return slugs;
+}
+
+/**
+ * Extract presentation slides from a Marked block AST or raw Markdown string:
+ * - Top-level ATX `#` (level 1): title-only slide containing just the `#` heading.
+ * - Top-level ATX `##` (level 2): full section slide including all contents and `###`–`######` subsections.
+ * - Headings inside blockquotes (`>`), HTML `<blockquote>`/`<q>`, code fences, lists, or front matter never split slides.
+ */
+export function extractSlides(document, { lexer, slugStrategy = 'github' } = {}) {
+  let tokens = document;
+  if (typeof document === 'string') {
+    if (typeof lexer !== 'function') throw new TypeError('Pass a Markdown lexer or a block AST');
+    const frontmatter = /^\uFEFF?---[ \t]*\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/.exec(document);
+    const hasMetadata = frontmatter && /^[^\s#:[\]{},]+[ \t]*:(?:[ \t]|$)/m.test(frontmatter[1]);
+    const body = hasMetadata ? document.slice(frontmatter[0].length) : document;
+    tokens = lexer(body);
+  }
+
+  const sharedDefs = [];
+  if (tokens && tokens.links && typeof tokens.links === 'object') {
+    for (const [key, def] of Object.entries(tokens.links)) {
+      if (def && def.href) {
+        const safeTitle = def.title ? ' "' + String(def.title).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"' : '';
+        sharedDefs.push('[' + key + ']: <' + def.href + '>' + safeTitle);
+      }
+    }
+  }
+  for (const token of tokens || []) {
+    if (token && token.type === 'footnoteDefinition' && token.raw) {
+      sharedDefs.push(token.raw.trim());
+    }
+  }
+  const sharedDefinitions = sharedDefs.join('\n\n');
+
+  const slides = [];
+  let currentH2 = null;
+  let htmlQuoteDepth = 0;
+
+  function flushCurrentH2() {
+    if (!currentH2) return;
+    const bodyMarkdown = joinSlideRawParts(currentH2.parts);
+    slides.push({
+      kind: 'h2',
+      title: currentH2.title,
+      markdown: sharedDefinitions ? (bodyMarkdown + '\n\n' + sharedDefinitions) : bodyMarkdown,
+      bodyMarkdown,
+      slugs: collectSlideSlugs(currentH2.tokens, slugStrategy),
+    });
+    currentH2 = null;
+  }
+
+  for (const token of tokens || []) {
+    if (!token || token.type === 'footnoteDefinition') continue;
+
+    const isTopLevelHeading = token.type === 'heading' && htmlQuoteDepth === 0;
+    const isAtxH1 = isTopLevelHeading && token.depth === 1 && /^ {0,3}#(?:[ \t]|\r?$)/m.test(token.raw || '');
+    const isAtxH2 = isTopLevelHeading && token.depth === 2 && /^ {0,3}##(?:[ \t]|\r?$)/m.test(token.raw || '');
+
+    if (isAtxH1) {
+      flushCurrentH2();
+      const title = headingText(token.tokens).trim();
+      const bodyMarkdown = String(token.raw || '').trim();
+      slides.push({
+        kind: 'h1',
+        title,
+        markdown: sharedDefinitions ? (bodyMarkdown + '\n\n' + sharedDefinitions) : bodyMarkdown,
+        bodyMarkdown,
+        slugs: collectSlideSlugs([token], slugStrategy),
+      });
+      continue;
+    }
+
+    if (isAtxH2) {
+      flushCurrentH2();
+      currentH2 = {
+        title: headingText(token.tokens).trim(),
+        parts: [token.raw || ''],
+        tokens: [token],
+      };
+      continue;
+    }
+
+    if (token.type === 'html') {
+      htmlQuoteDepth = updateHtmlQuoteDepth(token.raw, htmlQuoteDepth);
+    }
+
+    if (currentH2) {
+      currentH2.parts.push(token.raw || '');
+      currentH2.tokens.push(token);
+    }
+  }
+
+  flushCurrentH2();
+
+  if (slides.length === 0) {
+    const fallbackTokens = (tokens || []).filter(t => t && t.type !== 'footnoteDefinition');
+    const bodyMarkdown = joinSlideRawParts(fallbackTokens.map(t => t.raw || ''));
+    if (bodyMarkdown) {
+      slides.push({
+        kind: 'fallback',
+        title: '',
+        markdown: sharedDefinitions ? (bodyMarkdown + '\n\n' + sharedDefinitions) : bodyMarkdown,
+        bodyMarkdown,
+        slugs: collectSlideSlugs(fallbackTokens, slugStrategy),
+      });
+    }
+  }
+
+  return slides;
+}

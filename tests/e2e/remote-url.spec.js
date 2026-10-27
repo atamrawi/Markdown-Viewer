@@ -243,6 +243,127 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await preview.dispatchEvent('pointerdown', { pointerType: 'mouse', button: 2 });
     await preview.dispatchEvent('contextmenu', { button: 2, clientX: 120, clientY: 220 });
     await expect(page.locator('.document-menu-context.open')).toBeVisible();
+    await expect(page.locator('#standalone-slide-toggle')).toBeHidden();
+  });
+
+  test('supports slide mode in read-only remote URL mode with # title-only slides, ## full sections, and quote safety', async ({ page }) => {
+    const deckMarkdown = [
+      '# Architecture Presentation',
+      '',
+      'This intro under level 1 should be hidden in slide mode.',
+      '',
+      '## System Overview',
+      '',
+      'Top-level section content.',
+      '',
+      '> # Quoted Title Inside Blockquote',
+      '> ## Quoted Section Inside Blockquote',
+      '> Quoted explanation stays in System Overview.',
+      '',
+      '```markdown',
+      '# Heading in Code Block',
+      '## Subheading in Code Block',
+      '```',
+      '',
+      '"## Quoted inline paragraph"',
+      '',
+      '### Core Components',
+      '',
+      'Subsection details under Core Components.',
+      '',
+      '#### Data Layer',
+      '',
+      'Deep subsection details.',
+      '',
+      '# Closing Chapter',
+      '',
+      'Hidden paragraph under second H1.',
+      '',
+      '## Next Steps',
+      '',
+      'Read the [Reference Guide][guide-link] to continue.',
+      '',
+      '[guide-link]: https://example.com/guide'
+    ].join('\n');
+
+    await page.route('https://raw.githubusercontent.com/test-org/test-repo/main/docs/slides.md', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/markdown; charset=utf-8',
+        body: deckMarkdown
+      });
+    });
+
+    await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/slides.md');
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+
+    const preview = page.locator('#markdown-preview');
+    const slideToggle = page.locator('#standalone-slide-toggle');
+    const slideNav = page.locator('#standalone-slide-nav');
+    const prevBtn = page.locator('#standalone-slide-prev');
+    const nextBtn = page.locator('#standalone-slide-next');
+    const counter = page.locator('#standalone-slide-counter');
+
+    await expect(slideToggle).toBeVisible();
+    await expect(slideNav).toBeHidden();
+
+    // Enter Slide Mode
+    await slideToggle.click();
+    await expect(page.locator('html')).toHaveAttribute('data-slide-mode', 'true');
+    await expect(slideNav).toBeVisible();
+    await expect(counter).toHaveText('1 / 4');
+    await expect(prevBtn).toBeDisabled();
+    await expect(nextBtn).toBeEnabled();
+
+    // Slide 1: Level # shows ONLY the section title name
+    await expect(preview).toHaveAttribute('data-slide-kind', 'h1');
+    await expect(preview.locator('h1')).toHaveText('Architecture Presentation');
+    await expect(preview).not.toContainText('This intro under level 1 should be hidden');
+
+    // Slide 2: Level ## shows full contents, subsections, and keeps quoted/code headings inside this slide
+    await nextBtn.click();
+    await expect(counter).toHaveText('2 / 4');
+    await expect(prevBtn).toBeEnabled();
+    await expect(nextBtn).toBeEnabled();
+    await expect(preview).toHaveAttribute('data-slide-kind', 'h2');
+    await expect(preview.locator('> h2')).toHaveText('System Overview');
+    await expect(preview.locator('h3')).toHaveText('Core Components');
+    await expect(preview.locator('h4')).toHaveText('Data Layer');
+    await expect(preview.locator('blockquote h2')).toHaveText('Quoted Section Inside Blockquote');
+    await expect(preview).toContainText('Subheading in Code Block');
+
+    // Slide 3 via keyboard ArrowRight: second Level # shows ONLY title
+    await page.keyboard.press('ArrowRight');
+    await expect(counter).toHaveText('3 / 4');
+    await expect(preview).toHaveAttribute('data-slide-kind', 'h1');
+    await expect(preview.locator('h1')).toHaveText('Closing Chapter');
+    await expect(preview).not.toContainText('Hidden paragraph under second H1.');
+
+    // Slide 4: final ## section with bottom-of-file reference link resolved
+    await nextBtn.click();
+    await expect(counter).toHaveText('4 / 4');
+    await expect(nextBtn).toBeDisabled();
+    await expect(preview.locator('> h2')).toHaveText('Next Steps');
+    await expect(preview.locator('a', { hasText: 'Reference Guide' })).toHaveAttribute('href', 'https://example.com/guide');
+
+    // Navigate back with Previous button
+    await prevBtn.click();
+    await expect(counter).toHaveText('3 / 4');
+
+    // Exit Slide Mode via Escape and verify full document is restored
+    await page.keyboard.press('Escape');
+    await expect(page.locator('html')).not.toHaveAttribute('data-slide-mode', 'true');
+    await expect(slideNav).toBeHidden();
+    await expect(preview).toContainText('This intro under level 1 should be hidden in slide mode.');
+    await expect(preview).toContainText('Next Steps');
+
+    // Verify &slides=1 URL parameter launches directly into Slide Mode
+    await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/slides.md&slides=1');
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+    await expect(page.locator('html')).toHaveAttribute('data-slide-mode', 'true');
+    await expect(slideNav).toBeVisible();
+    await expect(counter).toHaveText('1 / 4');
+    await expect(preview.locator('h1')).toHaveText('Architecture Presentation');
   });
 });
 

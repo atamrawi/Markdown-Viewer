@@ -47,6 +47,9 @@
           <div id="neutralino-info"></div>
         </div>
         <div class="standalone-floating-controls" id="standalone-floating-controls">
+            <button id="standalone-slide-toggle" class="standalone-floating-btn standalone-slide-toggle" type="button" aria-label="Enter slide mode" aria-pressed="false" title="Enter slide mode">
+                <i id="standalone-slide-icon" class="lucide lucide-presentation" aria-hidden="true"></i>
+            </button>
             <button id="standalone-font-decrease" class="standalone-floating-btn" type="button" aria-label="Decrease font size" title="Decrease font size">
                 <span class="standalone-btn-font-symbol font-symbol-decrease" aria-hidden="true">A−</span>
             </button>
@@ -63,6 +66,17 @@
                 <i id="standalone-theme-icon" class="lucide lucide-moon" aria-hidden="true"></i>
             </button>
         </div>
+        <nav class="standalone-slide-nav" id="standalone-slide-nav" aria-label="Slide navigation" hidden>
+            <button id="standalone-slide-prev" class="standalone-slide-nav-btn" type="button" aria-label="Previous slide" title="Previous slide (←)">
+                <i class="lucide lucide-chevron-left" aria-hidden="true"></i>
+                <span class="standalone-slide-nav-label">Prev</span>
+            </button>
+            <span id="standalone-slide-counter" class="standalone-slide-counter" aria-live="polite" aria-atomic="true">1 / 1</span>
+            <button id="standalone-slide-next" class="standalone-slide-nav-btn" type="button" aria-label="Next slide" title="Next slide (→)">
+                <span class="standalone-slide-nav-label">Next</span>
+                <i class="lucide lucide-chevron-right" aria-hidden="true"></i>
+            </button>
+        </nav>
         <header class="app-header">
             <div class="container-fluid d-flex justify-content-between align-items-center header-container">
                 <!-- Left section: Application identity and GitHub -->

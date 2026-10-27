@@ -15,6 +15,15 @@
     );
     if (hasRemote) {
       document.documentElement.dataset.standaloneMode = 'true';
+      var searchReadOnly = (searchParams.get('readonly') || '').toLowerCase();
+      var hashReadOnly = (hashParams.get('readonly') || '').toLowerCase();
+      var isReadOnly = searchReadOnly !== '0' && searchReadOnly !== 'false' && hashReadOnly !== '0' && hashReadOnly !== 'false';
+      document.documentElement.dataset.standaloneReadonly = isReadOnly ? 'true' : 'false';
+      var slidesParam = (searchParams.get('slides') || searchParams.get('slide') || hashParams.get('slides') || hashParams.get('slide') || '').toLowerCase();
+      var modeParam = (searchParams.get('mode') || hashParams.get('mode') || '').toLowerCase();
+      if (isReadOnly && (slidesParam === '1' || slidesParam === 'true' || slidesParam === 'yes' || modeParam === 'slides' || modeParam === 'slide')) {
+        document.documentElement.dataset.slideMode = 'true';
+      }
       var theme = searchParams.get('theme') || hashParams.get('theme');
       if (theme === 'light' || theme === 'dark') {
         document.documentElement.dataset.theme = theme;

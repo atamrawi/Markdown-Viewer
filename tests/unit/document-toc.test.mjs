@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Marked, marked } from 'marked';
-import { createHeadingExtension, createHeadingSlugger, extractHeadings, generateTableOfContents } from '../../src/document-toc.mjs';
+import { createHeadingExtension, createHeadingSlugger, extractHeadings, extractSlides, generateTableOfContents } from '../../src/document-toc.mjs';
 
 const toc = (markdown, options = {}) => generateTableOfContents(markdown, { lexer: marked.lexer, ...options });
 const headings = markdown => extractHeadings(markdown, { lexer: marked.lexer });
@@ -140,4 +140,88 @@ test('preview heading extension uses the same targets as copied TOCs', () => {
     const html = parser.parse(markdown);
     assert.deepEqual([...html.matchAll(/<h\d id="([^"]+)"/g)].map(match => match[1]), expected);
   }
+});
+
+test('extractSlides shows title-only for # and full contents with subsections for ## without splitting on quotes or code', () => {
+  const markdown = [
+    '---',
+    'title: Deck Metadata',
+    '---',
+    'Preamble before any heading.',
+    '',
+    '# Deck Main Title',
+    'Paragraph under H1 that should not appear on the title slide.',
+    '> ## Quoted H2 under H1',
+    '',
+    '## Section Alpha',
+    'Alpha intro with [Ref Link][ref-url].',
+    '',
+    '> # Quoted H1 inside blockquote',
+    '> ## Quoted H2 inside blockquote',
+    '> > ## Nested Quoted H2',
+    '',
+    '<blockquote>',
+    '',
+    '## HTML Blockquote Heading',
+    '',
+    '</blockquote>',
+    '',
+    '```markdown',
+    '# Code Fence H1',
+    '## Code Fence H2',
+    '```',
+    '',
+    '"## Quoted String Paragraph"',
+    '',
+    '### Subsection Alpha.1',
+    'Details under H3.',
+    '',
+    '#### Deep Subsection Alpha.1.1',
+    'Details under H4.',
+    '',
+    'Setext Underline',
+    '---',
+    '',
+    '# Part Two Cover',
+    'Ignored part two intro.',
+    '',
+    '## Section Beta',
+    'Final slide body.',
+    '',
+    '[ref-url]: https://example.com/alpha "Alpha Docs"'
+  ].join('\n');
+
+  const slides = extractSlides(markdown, { lexer: marked.lexer });
+  assert.equal(slides.length, 4);
+
+  assert.equal(slides[0].kind, 'h1');
+  assert.equal(slides[0].title, 'Deck Main Title');
+  assert.equal(slides[0].bodyMarkdown, '# Deck Main Title');
+  assert.ok(!slides[0].bodyMarkdown.includes('Paragraph under H1'));
+
+  assert.equal(slides[1].kind, 'h2');
+  assert.equal(slides[1].title, 'Section Alpha');
+  assert.ok(slides[1].bodyMarkdown.includes('### Subsection Alpha.1'));
+  assert.ok(slides[1].bodyMarkdown.includes('#### Deep Subsection Alpha.1.1'));
+  assert.ok(slides[1].bodyMarkdown.includes('> ## Quoted H2 inside blockquote'));
+  assert.ok(slides[1].bodyMarkdown.includes('## HTML Blockquote Heading'));
+  assert.ok(slides[1].bodyMarkdown.includes('## Code Fence H2'));
+  assert.ok(slides[1].bodyMarkdown.includes('"## Quoted String Paragraph"'));
+  assert.ok(slides[1].markdown.includes('[ref-url]: <https://example.com/alpha> "Alpha Docs"'));
+
+  assert.equal(slides[2].kind, 'h1');
+  assert.equal(slides[2].title, 'Part Two Cover');
+  assert.equal(slides[2].bodyMarkdown, '# Part Two Cover');
+
+  assert.equal(slides[3].kind, 'h2');
+  assert.equal(slides[3].title, 'Section Beta');
+  assert.ok(slides[3].bodyMarkdown.includes('Final slide body.'));
+});
+
+test('extractSlides falls back to a single slide when document has no top-level # or ## headings', () => {
+  const markdown = 'Just plain paragraphs.\n\n> ## Quoted section only\n\n### Subsection only';
+  const slides = extractSlides(markdown, { lexer: marked.lexer });
+  assert.equal(slides.length, 1);
+  assert.equal(slides[0].kind, 'fallback');
+  assert.ok(slides[0].bodyMarkdown.includes('Just plain paragraphs.'));
 });
