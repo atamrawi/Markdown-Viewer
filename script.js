@@ -19,6 +19,21 @@
       const hashReadOnly = (hashParams.get('readonly') || '').toLowerCase();
       const isReadOnly = searchReadOnly !== '0' && searchReadOnly !== 'false' && hashReadOnly !== '0' && hashReadOnly !== 'false';
       document.documentElement.dataset.standaloneReadonly = isReadOnly ? 'true' : 'false';
+      if (isReadOnly && document.documentElement.dataset.standaloneControlsCollapsed === undefined) {
+        const controlsParam = (searchParams.get('controls') || hashParams.get('controls') || '').toLowerCase();
+        const collapsedParam = (searchParams.get('collapsed') || hashParams.get('collapsed') || '').toLowerCase();
+        let isControlsCollapsed = false;
+        if (controlsParam === 'collapsed' || controlsParam === '0' || controlsParam === 'false' || collapsedParam === '1' || collapsedParam === 'true' || collapsedParam === 'yes') {
+          isControlsCollapsed = true;
+        } else if (controlsParam === 'expanded' || controlsParam === '1' || controlsParam === 'true' || collapsedParam === '0' || collapsedParam === 'false' || collapsedParam === 'no') {
+          isControlsCollapsed = false;
+        } else {
+          try {
+            isControlsCollapsed = localStorage.getItem('markdownViewerStandaloneControlsCollapsed') === 'true';
+          } catch (_) {}
+        }
+        document.documentElement.dataset.standaloneControlsCollapsed = isControlsCollapsed ? 'true' : 'false';
+      }
     }
   } catch (_) {}
 })();
@@ -56,6 +71,25 @@ document.addEventListener("DOMContentLoaded", async function () {
     const slidesParam = (searchParams.get('slides') || searchParams.get('slide') || hashParams.get('slides') || hashParams.get('slide') || '').toLowerCase();
     const modeParam = (searchParams.get('mode') || hashParams.get('mode') || '').toLowerCase();
     return slidesParam === '1' || slidesParam === 'true' || slidesParam === 'yes' || modeParam === 'slides' || modeParam === 'slide';
+  }
+
+  const STANDALONE_CONTROLS_COLLAPSED_KEY = 'markdownViewerStandaloneControlsCollapsed';
+
+  function resolveStandaloneControlsCollapsedPreference() {
+    const { searchParams, hashParams } = getRemoteUrlParams();
+    const controlsParam = (searchParams.get('controls') || hashParams.get('controls') || '').toLowerCase();
+    const collapsedParam = (searchParams.get('collapsed') || hashParams.get('collapsed') || '').toLowerCase();
+    if (controlsParam === 'collapsed' || controlsParam === '0' || controlsParam === 'false' || collapsedParam === '1' || collapsedParam === 'true' || collapsedParam === 'yes') {
+      return true;
+    }
+    if (controlsParam === 'expanded' || controlsParam === '1' || controlsParam === 'true' || collapsedParam === '0' || collapsedParam === 'false' || collapsedParam === 'no') {
+      return false;
+    }
+    try {
+      return localStorage.getItem(STANDALONE_CONTROLS_COLLAPSED_KEY) === 'true';
+    } catch (_) {
+      return false;
+    }
   }
 
   function isStandaloneReadOnlyMode() {
@@ -523,11 +557,16 @@ document.addEventListener("DOMContentLoaded", async function () {
   const toggleSyncButton = document.getElementById("toggle-sync");
   const editorPane = document.getElementById("markdown-editor");
   const previewPane = document.querySelector(".preview-pane");
+  const standaloneFloatingControlsItems = document.getElementById("standalone-floating-controls-items");
+  const standaloneControlsToggleBtn = document.getElementById("standalone-controls-toggle");
+  const standaloneControlsToggleIcon = document.getElementById("standalone-controls-toggle-icon");
   const standaloneSlideToggleBtn = document.getElementById("standalone-slide-toggle");
   const standaloneSlideNav = document.getElementById("standalone-slide-nav");
   const standaloneSlidePrevBtn = document.getElementById("standalone-slide-prev");
   const standaloneSlideNextBtn = document.getElementById("standalone-slide-next");
   const standaloneSlideCounter = document.getElementById("standalone-slide-counter");
+  const slideStatItem = document.getElementById("slide-stat-item");
+  const statusSlideCounter = document.getElementById("status-slide-counter");
   let standaloneSlideModeActive = false;
   let standaloneSlides = [];
   let standaloneSlideIndex = 0;
@@ -15345,6 +15384,43 @@ ${selector} .arrowheadPath {
       });
   }
 
+  function setStandaloneControlsCollapsed(collapsed, options) {
+    const settings = options || {};
+    const readOnly = isStandaloneReadOnlyMode();
+    const nextCollapsed = Boolean(readOnly && collapsed);
+    if (standaloneControlsToggleBtn) {
+      standaloneControlsToggleBtn.hidden = !readOnly;
+      standaloneControlsToggleBtn.setAttribute('aria-expanded', nextCollapsed ? 'false' : 'true');
+      const label = nextCollapsed ? 'Expand controls' : 'Collapse controls';
+      standaloneControlsToggleBtn.setAttribute('aria-label', label);
+      standaloneControlsToggleBtn.title = label;
+    }
+    if (standaloneControlsToggleIcon) {
+      standaloneControlsToggleIcon.className = 'lucide lucide-' + (nextCollapsed ? 'chevron-left' : 'chevron-right');
+    }
+    if (readOnly) {
+      document.documentElement.dataset.standaloneControlsCollapsed = nextCollapsed ? 'true' : 'false';
+      if (settings.persist) {
+        try {
+          localStorage.setItem(STANDALONE_CONTROLS_COLLAPSED_KEY, nextCollapsed ? 'true' : 'false');
+        } catch (_) {}
+      }
+    } else {
+      delete document.documentElement.dataset.standaloneControlsCollapsed;
+    }
+    if (standaloneFloatingControlsItems) {
+      standaloneFloatingControlsItems.inert = nextCollapsed;
+      if (nextCollapsed) {
+        standaloneFloatingControlsItems.setAttribute('aria-hidden', 'true');
+      } else {
+        standaloneFloatingControlsItems.removeAttribute('aria-hidden');
+      }
+    }
+    if (standaloneSlideNav) {
+      standaloneSlideNav.inert = !standaloneSlideModeActive || nextCollapsed;
+    }
+  }
+
   function syncStandaloneSlideControlsVisibility() {
     const readOnly = isStandaloneReadOnlyMode();
     const hasError = Boolean(markdownPreview && markdownPreview.dataset.renderState === 'error');
@@ -15353,6 +15429,14 @@ ${selector} .arrowheadPath {
       document.documentElement.dataset.standaloneReadonly = readOnly ? 'true' : 'false';
     } else {
       delete document.documentElement.dataset.standaloneReadonly;
+    }
+    if (readOnly) {
+      const currentCollapsed = document.documentElement.dataset.standaloneControlsCollapsed !== undefined
+        ? document.documentElement.dataset.standaloneControlsCollapsed === 'true'
+        : resolveStandaloneControlsCollapsedPreference();
+      setStandaloneControlsCollapsed(currentCollapsed, { persist: false });
+    } else {
+      setStandaloneControlsCollapsed(false, { persist: false });
     }
     if (standaloneSlideToggleBtn) {
       standaloneSlideToggleBtn.hidden = !canUseSlides;
@@ -15391,6 +15475,19 @@ ${selector} .arrowheadPath {
       standaloneSlideCounter.dataset.totalSlides = String(total);
       standaloneSlideCounter.setAttribute('aria-label', `Slide ${current} of ${total}`);
     }
+    if (slideStatItem) {
+      slideStatItem.hidden = !standaloneSlideModeActive;
+      if (standaloneSlideModeActive) {
+        slideStatItem.setAttribute('aria-label', `Slide ${current} of ${total}`);
+      } else {
+        slideStatItem.removeAttribute('aria-label');
+      }
+    }
+    if (statusSlideCounter) {
+      statusSlideCounter.textContent = `${current} / ${total}`;
+      statusSlideCounter.dataset.currentSlide = String(current);
+      statusSlideCounter.dataset.totalSlides = String(total);
+    }
     if (standaloneSlidePrevBtn) {
       const prevDisabled = current <= 1;
       standaloneSlidePrevBtn.disabled = prevDisabled;
@@ -15409,6 +15506,8 @@ ${selector} .arrowheadPath {
     }
     if (standaloneSlideNav) {
       standaloneSlideNav.hidden = !standaloneSlideModeActive;
+      const controlsCollapsed = isStandaloneReadOnlyMode() && document.documentElement.dataset.standaloneControlsCollapsed === 'true';
+      standaloneSlideNav.inert = !standaloneSlideModeActive || controlsCollapsed;
     }
   }
 
@@ -25674,6 +25773,16 @@ ${selector} .arrowheadPath {
         }, 400);
       }
     });
+  }
+
+  if (standaloneControlsToggleBtn) {
+    standaloneControlsToggleBtn.addEventListener('click', function() {
+      const currentlyCollapsed = document.documentElement.dataset.standaloneControlsCollapsed === 'true';
+      setStandaloneControlsCollapsed(!currentlyCollapsed, { persist: true });
+    });
+    if (hasRemoteUrlParameter()) {
+      setStandaloneControlsCollapsed(resolveStandaloneControlsCollapsedPreference(), { persist: false });
+    }
   }
 
   if (standaloneSlideToggleBtn) {

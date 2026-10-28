@@ -144,23 +144,28 @@
 <body>
     <div class="app-container">
         <div class="standalone-floating-controls" id="standalone-floating-controls">
-            <button id="standalone-slide-toggle" class="standalone-floating-btn standalone-slide-toggle" type="button" aria-label="Enter slide mode" aria-pressed="false" title="Enter slide mode">
-                <i id="standalone-slide-icon" class="lucide lucide-presentation" aria-hidden="true"></i>
-            </button>
-            <button id="standalone-font-decrease" class="standalone-floating-btn" type="button" aria-label="Decrease font size" title="Decrease font size">
-                <span class="standalone-btn-font-symbol font-symbol-decrease" aria-hidden="true">A−</span>
-            </button>
-            <button id="standalone-font-increase" class="standalone-floating-btn" type="button" aria-label="Increase font size" title="Increase font size">
-                <span class="standalone-btn-font-symbol font-symbol-increase" aria-hidden="true">A+</span>
-            </button>
-            <button id="standalone-width-toggle" class="standalone-floating-btn" type="button" aria-label="Toggle reader width" title="Reading width: Normal (860px)">
-                <i id="standalone-width-icon" class="lucide lucide-maximize" aria-hidden="true"></i>
-            </button>
-            <button id="standalone-reset" class="standalone-floating-btn" type="button" aria-label="Reset font size and width" title="Reset font and width to default">
-                <i id="standalone-reset-icon" class="lucide lucide-rotate-ccw" aria-hidden="true"></i>
-            </button>
-            <button id="standalone-theme-toggle" class="standalone-floating-btn standalone-theme-toggle" type="button" aria-label="Toggle appearance" title="Toggle appearance">
-                <i id="standalone-theme-icon" class="lucide lucide-moon" aria-hidden="true"></i>
+            <div class="standalone-floating-controls-items" id="standalone-floating-controls-items">
+                <button id="standalone-slide-toggle" class="standalone-floating-btn standalone-slide-toggle" type="button" aria-label="Enter slide mode" aria-pressed="false" title="Enter slide mode">
+                    <i id="standalone-slide-icon" class="lucide lucide-presentation" aria-hidden="true"></i>
+                </button>
+                <button id="standalone-font-decrease" class="standalone-floating-btn" type="button" aria-label="Decrease font size" title="Decrease font size">
+                    <span class="standalone-btn-font-symbol font-symbol-decrease" aria-hidden="true">A−</span>
+                </button>
+                <button id="standalone-font-increase" class="standalone-floating-btn" type="button" aria-label="Increase font size" title="Increase font size">
+                    <span class="standalone-btn-font-symbol font-symbol-increase" aria-hidden="true">A+</span>
+                </button>
+                <button id="standalone-width-toggle" class="standalone-floating-btn" type="button" aria-label="Toggle reader width" title="Reading width: Normal (860px)">
+                    <i id="standalone-width-icon" class="lucide lucide-maximize" aria-hidden="true"></i>
+                </button>
+                <button id="standalone-reset" class="standalone-floating-btn" type="button" aria-label="Reset font size and width" title="Reset font and width to default">
+                    <i id="standalone-reset-icon" class="lucide lucide-rotate-ccw" aria-hidden="true"></i>
+                </button>
+                <button id="standalone-theme-toggle" class="standalone-floating-btn standalone-theme-toggle" type="button" aria-label="Toggle appearance" title="Toggle appearance">
+                    <i id="standalone-theme-icon" class="lucide lucide-moon" aria-hidden="true"></i>
+                </button>
+            </div>
+            <button id="standalone-controls-toggle" class="standalone-floating-btn standalone-controls-toggle" type="button" aria-label="Collapse controls" aria-expanded="true" aria-controls="standalone-floating-controls-items" title="Collapse controls">
+                <i id="standalone-controls-toggle-icon" class="lucide lucide-chevron-right" aria-hidden="true"></i>
             </button>
         </div>
         <nav class="standalone-slide-nav" id="standalone-slide-nav" aria-label="Slide navigation" hidden>
@@ -2022,6 +2027,9 @@
         </div>
         <footer class="app-status-bar" aria-label="Document statistics and save status">
           <div id="stats-container" class="stats-container d-flex align-items-center d-none d-md-flex" aria-label="Document statistics">
+            <div id="slide-stat-item" class="stat-item stat-item-slide me-3" aria-live="polite" aria-atomic="true" hidden>
+              <i class="lucide lucide-presentation me-1" aria-hidden="true"></i><span id="lbl-slide-status">Slide</span> <span id="status-slide-counter">1 / 1</span>
+            </div>
             <div class="stat-item me-3">
               <i class="lucide lucide-clock-3 me-1" aria-hidden="true"></i><span id="reading-time">0</span> <span id="lbl-min-read">Min Read</span>
             </div>

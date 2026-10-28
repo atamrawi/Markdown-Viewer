@@ -14664,6 +14664,45 @@ body.standalone-file-mode .standalone-floating-controls {
   display: flex !important;
 }
 
+.standalone-floating-controls-items {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transform-origin: right center;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0s;
+}
+
+.standalone-controls-toggle[hidden],
+html[data-standalone-readonly="false"] .standalone-controls-toggle {
+  display: none !important;
+}
+
+html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-floating-controls {
+  pointer-events: none;
+}
+
+html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-floating-controls-items {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(0.75rem) scale(0.92);
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0.18s;
+}
+
+html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-controls-toggle {
+  pointer-events: auto;
+  opacity: 0.68;
+}
+
+html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-controls-toggle:hover,
+html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-controls-toggle:focus-visible {
+  opacity: 1;
+}
+
 .standalone-floating-btn,
 .standalone-theme-toggle {
   display: flex;
@@ -14693,7 +14732,9 @@ body.standalone-file-mode .standalone-floating-controls {
 }
 
 .standalone-floating-btn:hover,
-.standalone-theme-toggle:hover {
+.standalone-theme-toggle:hover,
+.standalone-floating-btn:focus-visible,
+.standalone-theme-toggle:focus-visible {
   transform: translateY(-2px) scale(1.06);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   color: #0969da;
@@ -14701,7 +14742,9 @@ body.standalone-file-mode .standalone-floating-controls {
 }
 
 [data-theme="dark"] .standalone-floating-btn:hover,
-[data-theme="dark"] .standalone-theme-toggle:hover {
+[data-theme="dark"] .standalone-theme-toggle:hover,
+[data-theme="dark"] .standalone-floating-btn:focus-visible,
+[data-theme="dark"] .standalone-theme-toggle:focus-visible {
   color: #58a6ff;
   border-color: #58a6ff;
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.6);
@@ -14805,7 +14848,7 @@ html[data-theme="dark"][data-slide-mode="true"] .standalone-slide-toggle:hover,
 
 .standalone-slide-nav {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: 2.5rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
@@ -14819,6 +14862,9 @@ html[data-theme="dark"][data-slide-mode="true"] .standalone-slide-toggle:hover,
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0s;
 }
 
 .standalone-slide-nav[hidden] {
@@ -14827,6 +14873,16 @@ html[data-theme="dark"][data-slide-mode="true"] .standalone-slide-toggle:hover,
 
 html[data-slide-mode="true"] .standalone-slide-nav:not([hidden]) {
   display: flex;
+}
+
+html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-slide-nav {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(0.65rem) scale(0.95);
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0.18s;
 }
 
 [data-theme="dark"] .standalone-slide-nav {
@@ -14911,8 +14967,7 @@ html[data-slide-mode="true"] .standalone-slide-nav:not([hidden]) {
 html[data-slide-mode="true"] #markdown-preview {
   max-width: 960px;
   padding: 4.5rem 2.5rem 6.5rem 2.5rem;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100%;
 }
 
 html[data-slide-mode="true"] #markdown-preview[data-slide-kind="h1"] {
@@ -14954,9 +15009,74 @@ html[data-slide-mode="true"] #markdown-preview[data-slide-kind="h2"] > h2:first-
   margin-top: 0;
 }
 
+.stat-item-slide[hidden] {
+  display: none !important;
+}
+
+.stat-item-slide i {
+  color: var(--accent-color, #0969da);
+  opacity: 0.95;
+}
+
+#status-slide-counter {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+@media (min-width: 768px) and (max-width: 1079px) {
+  html[data-standalone-mode="true"] .app-status-bar,
+  body.standalone-file-mode .app-status-bar {
+    justify-content: space-between;
+  }
+
+  html[data-standalone-mode="true"] .app-status-bar .stats-container,
+  body.standalone-file-mode .app-status-bar .stats-container {
+    display: flex !important;
+    position: static;
+    transform: none;
+  }
+}
+
+@media (max-width: 767.98px) {
+  html[data-slide-mode="true"] .app-status-bar {
+    justify-content: space-between;
+  }
+
+  html[data-slide-mode="true"] .app-status-bar .stats-container {
+    display: flex !important;
+    position: static;
+    transform: none;
+  }
+
+  html[data-slide-mode="true"] .app-status-bar .stats-container .stat-item:not(.stat-item-slide) {
+    display: none !important;
+  }
+
+  html[data-slide-mode="true"] .app-status-bar .stat-item-slide {
+    margin-right: 0 !important;
+  }
+}
+
 @media (max-width: 640px) {
+  .standalone-floating-controls {
+    top: 0.875rem;
+    right: 0.875rem;
+    gap: 0.35rem;
+  }
+
+  .standalone-floating-controls-items {
+    gap: 0.35rem;
+  }
+
+  .standalone-floating-btn,
+  .standalone-theme-toggle {
+    width: 2.2rem;
+    height: 2.2rem;
+  }
+
   .standalone-slide-nav {
-    bottom: 1rem;
+    bottom: 2.25rem;
     padding: 0.3rem;
   }
 
@@ -14970,6 +15090,25 @@ html[data-slide-mode="true"] #markdown-preview[data-slide-kind="h2"] > h2:first-
 
   html[data-slide-mode="true"] #markdown-preview {
     padding: 4.25rem 1.25rem 5.75rem 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .standalone-floating-controls-items,
+  .standalone-floating-btn,
+  .standalone-theme-toggle,
+  .standalone-floating-btn i,
+  .standalone-theme-toggle i,
+  .standalone-slide-nav,
+  .standalone-slide-nav-btn {
+    transition: none !important;
+  }
+}
+
+@media print {
+  .standalone-floating-controls,
+  .standalone-slide-nav {
+    display: none !important;
   }
 }
 

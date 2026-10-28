@@ -244,6 +244,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await preview.dispatchEvent('contextmenu', { button: 2, clientX: 120, clientY: 220 });
     await expect(page.locator('.document-menu-context.open')).toBeVisible();
     await expect(page.locator('#standalone-slide-toggle')).toBeHidden();
+    await expect(page.locator('#standalone-controls-toggle')).toBeHidden();
   });
 
   test('supports slide mode in read-only remote URL mode with # title-only slides, ## full sections, and quote safety', async ({ page }) => {
@@ -364,6 +365,84 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(slideNav).toBeVisible();
     await expect(counter).toHaveText('1 / 4');
     await expect(preview.locator('h1')).toHaveText('Architecture Presentation');
+  });
+
+  test('supports collapsible controls starting expanded by default and shows slide status in status bar during slide mode', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.route('https://raw.githubusercontent.com/test-org/test-repo/main/docs/collapsible.md', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/markdown; charset=utf-8',
+        body: '# Title Slide\n\n## First Topic\n\nTopic details with words.\n\n## Second Topic\n\nMore details here.'
+      });
+    });
+
+    await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/collapsible.md');
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+
+    const controlsToggle = page.locator('#standalone-controls-toggle');
+    const controlsItems = page.locator('#standalone-floating-controls-items');
+    const slideToggle = page.locator('#standalone-slide-toggle');
+    const themeToggle = page.locator('#standalone-theme-toggle');
+    const slideNav = page.locator('#standalone-slide-nav');
+    const slideStatItem = page.locator('#slide-stat-item');
+    const statusSlideCounter = page.locator('#status-slide-counter');
+
+    // Starts expanded on first visit
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'false');
+    await expect(controlsToggle).toBeVisible();
+    await expect(controlsToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(slideToggle).toBeVisible();
+    await expect(themeToggle).toBeVisible();
+    await expect(slideStatItem).toBeHidden();
+
+    // Enter Slide Mode and verify status bar shows Slide X / Y alongside Min Read, Words, and Chars
+    await slideToggle.click();
+    await expect(page.locator('html')).toHaveAttribute('data-slide-mode', 'true');
+    await expect(slideNav).toBeVisible();
+    await expect(slideStatItem).toBeVisible();
+    await expect(statusSlideCounter).toHaveText('1 / 3');
+    await expect(page.locator('#reading-time')).toBeVisible();
+    await expect(page.locator('#word-count')).toBeVisible();
+    await expect(page.locator('#char-count')).toBeVisible();
+
+    // Record toggle position to verify it stays stationary when collapsing
+    const beforeRect = await controlsToggle.boundingBox();
+
+    // Collapse controls: floating buttons and bottom slide nav tuck away while status bar retains slide counter
+    await controlsToggle.click();
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'true');
+    await expect(controlsToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(slideToggle).toBeHidden();
+    await expect(themeToggle).toBeHidden();
+    await expect(slideNav).toBeHidden();
+    expect(await controlsItems.evaluate(el => el.inert)).toBe(true);
+
+    const afterRect = await controlsToggle.boundingBox();
+    const beforeCenterX = beforeRect.x + beforeRect.width / 2;
+    const afterCenterX = afterRect.x + afterRect.width / 2;
+    expect(Math.abs(afterCenterX - beforeCenterX)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterRect.y - beforeRect.y)).toBeLessThanOrEqual(4);
+
+    // Navigating slides with keyboard while collapsed updates the status bar slide counter
+    await page.keyboard.press('ArrowRight');
+    await expect(statusSlideCounter).toHaveText('2 / 3');
+    await expect(slideStatItem).toBeVisible();
+
+    // Exiting slide mode hides the slide stat item from the status bar
+    await page.keyboard.press('Escape');
+    await expect(slideStatItem).toBeHidden();
+
+    // Collapsed preference persists across reloads without flash
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'true');
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+    await expect(themeToggle).toBeHidden();
+
+    // URL parameter override ?controls=expanded overrides saved localStorage preference
+    await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/collapsible.md&controls=expanded');
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'false');
+    await expect(themeToggle).toBeVisible();
   });
 });
 

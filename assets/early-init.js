@@ -19,6 +19,21 @@
       var hashReadOnly = (hashParams.get('readonly') || '').toLowerCase();
       var isReadOnly = searchReadOnly !== '0' && searchReadOnly !== 'false' && hashReadOnly !== '0' && hashReadOnly !== 'false';
       document.documentElement.dataset.standaloneReadonly = isReadOnly ? 'true' : 'false';
+      if (isReadOnly) {
+        var controlsParam = (searchParams.get('controls') || hashParams.get('controls') || '').toLowerCase();
+        var collapsedParam = (searchParams.get('collapsed') || hashParams.get('collapsed') || '').toLowerCase();
+        var isControlsCollapsed = false;
+        if (controlsParam === 'collapsed' || controlsParam === '0' || controlsParam === 'false' || collapsedParam === '1' || collapsedParam === 'true' || collapsedParam === 'yes') {
+          isControlsCollapsed = true;
+        } else if (controlsParam === 'expanded' || controlsParam === '1' || controlsParam === 'true' || collapsedParam === '0' || collapsedParam === 'false' || collapsedParam === 'no') {
+          isControlsCollapsed = false;
+        } else {
+          try {
+            isControlsCollapsed = localStorage.getItem('markdownViewerStandaloneControlsCollapsed') === 'true';
+          } catch (_) {}
+        }
+        document.documentElement.dataset.standaloneControlsCollapsed = isControlsCollapsed ? 'true' : 'false';
+      }
       var slidesParam = (searchParams.get('slides') || searchParams.get('slide') || hashParams.get('slides') || hashParams.get('slide') || '').toLowerCase();
       var modeParam = (searchParams.get('mode') || hashParams.get('mode') || '').toLowerCase();
       if (isReadOnly && (slidesParam === '1' || slidesParam === 'true' || slidesParam === 'yes' || modeParam === 'slides' || modeParam === 'slide')) {
