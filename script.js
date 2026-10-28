@@ -532,6 +532,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   const standaloneControlsToggleIcon = document.getElementById("standalone-controls-toggle-icon");
   const standaloneSlideToggleBtn = document.getElementById("standalone-slide-toggle");
   const standaloneVisualSettingsBtn = document.getElementById("standalone-visual-settings");
+  const standaloneExportWrapper = document.getElementById("standalone-export-wrapper");
+  const standaloneExportToggleBtn = document.getElementById("standalone-export-toggle");
+  const standaloneExportMenu = document.getElementById("standalone-export-menu");
+  const standaloneExportMdBtn = document.getElementById("standalone-export-md");
+  const standaloneExportHtmlBtn = document.getElementById("standalone-export-html");
+  const standaloneExportPdfBtn = document.getElementById("standalone-export-pdf");
+  const standaloneExportPngBtn = document.getElementById("standalone-export-png");
   const standaloneSlideNav = document.getElementById("standalone-slide-nav");
   const standaloneSlidePrevBtn = document.getElementById("standalone-slide-prev");
   const standaloneSlideNextBtn = document.getElementById("standalone-slide-next");
@@ -924,7 +931,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function blockShareSnapshotSourceAccess(tabId = activeTabId) {
-    if (!shareSnapshotViewOnlyTabIds.has(tabId)) return false;
+    if (!shareSnapshotViewOnlyTabIds.has(tabId) || !isShareSnapshotTabId(tabId)) return false;
     alert('This shared snapshot is view only. The Markdown source cannot be downloaded or copied.');
     announceToScreenReader('This shared snapshot is view only.');
     return true;
@@ -13760,16 +13767,19 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   function commitPreviewHtml(sanitizedHtml, referenceData, rawVal, context) {
+    const resetScrollTop = Boolean(context && context.resetScrollTop);
     const renderedDocumentId = previewLastRenderedTabId;
-    const renderedScrollSnapshot = previewHasCommittedRender && !previewContainsSkeleton()
+    const renderedScrollSnapshot = !resetScrollTop && previewHasCommittedRender && !previewContainsSkeleton()
       ? capturePreviewScroll()
       : null;
     if (renderedScrollSnapshot) {
       savePreviewScrollSnapshot(renderedDocumentId, renderedScrollSnapshot);
     }
-    const scrollSnapshot = renderedDocumentId === context.previewDocumentId && renderedScrollSnapshot
-      ? renderedScrollSnapshot
-      : getPreviewScrollSnapshot(context.previewDocumentId);
+    const scrollSnapshot = resetScrollTop
+      ? { top: 0, left: 0 }
+      : (renderedDocumentId === context.previewDocumentId && renderedScrollSnapshot
+        ? renderedScrollSnapshot
+        : getPreviewScrollSnapshot(context.previewDocumentId));
 
     mathJaxTypesetRunId += 1;
     clearMathJaxPreviewState(markdownPreview);
@@ -13788,7 +13798,19 @@ document.addEventListener("DOMContentLoaded", async function () {
     markdownPreview.removeAttribute('aria-busy');
     markdownPreview.dataset.renderState = 'ready';
 
-    restorePreviewScroll(scrollSnapshot, context);
+    if (resetScrollTop) {
+      savePreviewScrollSnapshot(context.previewDocumentId, { top: 0, left: 0 });
+      if (previewPane) {
+        previewPane.scrollTop = 0;
+        previewPane.scrollLeft = 0;
+      }
+      if (markdownPreview) {
+        markdownPreview.scrollTop = 0;
+        markdownPreview.scrollLeft = 0;
+      }
+    } else {
+      restorePreviewScroll(scrollSnapshot, context);
+    }
     return patchResult;
   }
 
@@ -15360,9 +15382,26 @@ ${selector} .arrowheadPath {
       });
   }
 
+  function setStandaloneExportMenuOpen(open) {
+    const isOpen = Boolean(open);
+    if (standaloneExportMenu) {
+      standaloneExportMenu.hidden = !isOpen;
+    }
+    if (standaloneExportToggleBtn) {
+      standaloneExportToggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+  }
+
+  function closeStandaloneExportMenu() {
+    setStandaloneExportMenuOpen(false);
+  }
+
   function setStandaloneControlsCollapsed(collapsed) {
     const readOnly = isStandaloneReadOnlyMode();
     const nextCollapsed = Boolean(readOnly && collapsed);
+    if (nextCollapsed) {
+      closeStandaloneExportMenu();
+    }
     if (standaloneControlsToggleBtn) {
       standaloneControlsToggleBtn.hidden = !readOnly;
       standaloneControlsToggleBtn.setAttribute('aria-expanded', nextCollapsed ? 'false' : 'true');
@@ -15402,6 +15441,13 @@ ${selector} .arrowheadPath {
     }
     if (standaloneSlideToggleBtn) {
       standaloneSlideToggleBtn.hidden = !canUseSlides;
+    }
+    if (standaloneExportToggleBtn) {
+      standaloneExportToggleBtn.disabled = hasError;
+      standaloneExportToggleBtn.classList.toggle('is-disabled', hasError);
+      if (hasError) {
+        closeStandaloneExportMenu();
+      }
     }
     if (!canUseSlides && (standaloneSlideModeActive || document.documentElement.dataset.slideMode === 'true')) {
       exitStandaloneSlideMode({ skipRender: true });
@@ -15533,12 +15579,14 @@ ${selector} .arrowheadPath {
     const sanitizedHtml = sanitizePreviewHtml(html);
 
     previewSegmentHtmlCache.clear();
+    const shouldResetScroll = !settings.preserveScroll;
     const context = {
       force: true,
       forceAdvancedPostProcess: true,
       renderId,
       previewDocumentId,
       reason: 'slide',
+      resetScrollTop: shouldResetScroll,
     };
     const patchResult = commitPreviewHtml(
       sanitizedHtml,
@@ -15548,10 +15596,25 @@ ${selector} .arrowheadPath {
     );
     postProcessPreview(slide.markdown, context, patchResult);
 
-    if (!settings.preserveScroll) {
-      if (previewPane) previewPane.scrollTop = 0;
-      markdownPreview.scrollTop = 0;
+    if (shouldResetScroll) {
+      resetStandaloneSlideScrollPosition();
     }
+  }
+
+  function resetStandaloneSlideScrollPosition() {
+    if (previewPane) {
+      previewPane.scrollTop = 0;
+      previewPane.scrollLeft = 0;
+    }
+    if (markdownPreview) {
+      markdownPreview.scrollTop = 0;
+      markdownPreview.scrollLeft = 0;
+    }
+    if (document.scrollingElement) {
+      document.scrollingElement.scrollTop = 0;
+      document.scrollingElement.scrollLeft = 0;
+    }
+    savePreviewScrollSnapshot(getActivePreviewDocumentId(), { top: 0, left: 0 });
   }
 
   function enterStandaloneSlideMode(initialIndex) {
@@ -15587,9 +15650,8 @@ ${selector} .arrowheadPath {
     updateStandaloneSlideNavUI();
     if (wasActive && !settings.skipRender) {
       _lastRenderedContent = null;
-      renderMarkdown({ force: true, reason: 'exit-slide-mode' });
-      if (previewPane) previewPane.scrollTop = 0;
-      if (markdownPreview) markdownPreview.scrollTop = 0;
+      renderMarkdown({ force: true, reason: 'exit-slide-mode', resetScrollTop: true });
+      resetStandaloneSlideScrollPosition();
     }
   }
 
@@ -15622,7 +15684,11 @@ ${selector} .arrowheadPath {
     // (e.g. switching back to a tab whose content didn't change).
     updateDocumentStats();
     if (standaloneSlideModeActive && isStandaloneReadOnlyMode()) {
-      renderActiveStandaloneSlide({ preserveScroll: !force });
+      renderActiveStandaloneSlide({
+        preserveScroll: options.resetScrollTop === true
+          ? false
+          : (options.preserveScroll !== undefined ? options.preserveScroll : true)
+      });
       return;
     }
     const previewDocumentId = getActivePreviewDocumentId();
@@ -15660,6 +15726,7 @@ ${selector} .arrowheadPath {
         renderId,
         previewDocumentId,
         reason: options.reason || 'direct',
+        resetScrollTop: options.resetScrollTop === true,
       });
     };
 
@@ -22187,9 +22254,14 @@ ${selector} .arrowheadPath {
         }
       }
     };
+    const handleDocumentKeydown = function(event) {
+      if (event.defaultPrevented || activeModal !== modal || modal.contains(event.target)) return;
+      handleKeydown(event);
+    };
     modal.addEventListener('keydown', handleKeydown);
+    document.addEventListener('keydown', handleDocumentKeydown);
     modal.addEventListener('mousedown', handlePointerDown);
-    modal._modalHandlers = { handleKeydown, handlePointerDown };
+    modal._modalHandlers = { handleKeydown, handleDocumentKeydown, handlePointerDown };
   }
 
   function closeAppModal(modal) {
@@ -22198,6 +22270,7 @@ ${selector} .arrowheadPath {
     modal.setAttribute('aria-hidden', 'true');
     const handlers = modal._modalHandlers || {};
     if (handlers.handleKeydown) modal.removeEventListener('keydown', handlers.handleKeydown);
+    if (handlers.handleDocumentKeydown) document.removeEventListener('keydown', handlers.handleDocumentKeydown);
     if (handlers.handlePointerDown) modal.removeEventListener('mousedown', handlers.handlePointerDown);
     if (activeModal === modal) activeModal = null;
     window.setTimeout(function() {
@@ -25855,11 +25928,86 @@ ${selector} .arrowheadPath {
   if (standaloneVisualSettingsBtn) {
     standaloneVisualSettingsBtn.addEventListener('click', function() {
       clearStandaloneControlsCollapseTimer();
+      closeStandaloneExportMenu();
       const readOnly = isStandaloneReadOnlyMode();
       if (readOnly) {
         setStandaloneControlsCollapsed(true);
       }
       openVisualSettingsModal(readOnly && standaloneControlsToggleBtn ? standaloneControlsToggleBtn : standaloneVisualSettingsBtn);
+    });
+  }
+
+  function runStandaloneExportAction(targetBtn, targetModal) {
+    clearStandaloneControlsCollapseTimer();
+    closeStandaloneExportMenu();
+    const readOnly = isStandaloneReadOnlyMode();
+    if (readOnly) {
+      setStandaloneControlsCollapsed(true);
+    }
+    if (targetBtn) {
+      targetBtn.click();
+    }
+    if (targetModal && activeModal === targetModal) {
+      const focusFallback = readOnly && standaloneControlsToggleBtn
+        ? standaloneControlsToggleBtn
+        : standaloneExportToggleBtn;
+      if (focusFallback) {
+        targetModal._returnFocus = focusFallback;
+        lastFocusedElement = focusFallback;
+      }
+    }
+  }
+
+  if (standaloneExportToggleBtn && standaloneExportMenu) {
+    standaloneExportToggleBtn.addEventListener('click', function(event) {
+      clearStandaloneControlsCollapseTimer();
+      const nextOpen = standaloneExportMenu.hidden;
+      setStandaloneExportMenuOpen(nextOpen);
+      if (nextOpen && event.detail === 0 && standaloneExportMdBtn) {
+        standaloneExportMdBtn.focus();
+      }
+    });
+
+    document.addEventListener('pointerdown', function(event) {
+      if (standaloneExportMenu.hidden) return;
+      if (!standaloneExportWrapper || !standaloneExportWrapper.contains(event.target)) {
+        closeStandaloneExportMenu();
+      }
+    });
+
+    document.addEventListener('keydown', function(event) {
+      if (event.key !== 'Escape' || standaloneExportMenu.hidden) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const focusWasInside = standaloneExportWrapper && standaloneExportWrapper.contains(document.activeElement);
+      closeStandaloneExportMenu();
+      if (focusWasInside && standaloneExportToggleBtn) {
+        standaloneExportToggleBtn.focus();
+      }
+    }, true);
+  }
+
+  if (standaloneExportMdBtn) {
+    standaloneExportMdBtn.addEventListener('click', function() {
+      runStandaloneExportAction(exportMd, null);
+    });
+  }
+
+  if (standaloneExportHtmlBtn) {
+    standaloneExportHtmlBtn.addEventListener('click', function() {
+      runStandaloneExportAction(exportHtml, htmlExportModal);
+    });
+  }
+
+  if (standaloneExportPdfBtn) {
+    standaloneExportPdfBtn.addEventListener('click', function() {
+      runStandaloneExportAction(exportPdf, pdfExportModal);
+    });
+  }
+
+  if (standaloneExportPngBtn) {
+    standaloneExportPngBtn.addEventListener('click', function() {
+      runStandaloneExportAction(exportPng, pngExportModal);
     });
   }
 
@@ -29046,9 +29194,10 @@ ${selector} .arrowheadPath {
       }
     });
 
-    [exportMd, mobileExportMd, copyMarkdownButton, mobileCopyMarkdownButton].forEach(function(button) {
+    const blockSourceExport = snapshotViewOnly && isShareSnapshotActive();
+    [exportMd, mobileExportMd, standaloneExportMdBtn, copyMarkdownButton, mobileCopyMarkdownButton].forEach(function(button) {
       if (!button) return;
-      if (snapshotViewOnly) {
+      if (blockSourceExport) {
         if (button.dataset.shareSnapshotSourceDisabled !== 'true') {
           button.dataset.shareSnapshotOriginalTitle = button.getAttribute('title') || '';
         }
@@ -33625,6 +33774,10 @@ ${selector} .arrowheadPath {
     if (exportPdfEl) updateMenuLabel(exportPdfEl, translateUiString('PDF'));
     const exportPngEl = document.getElementById('export-png');
     if (exportPngEl) updateMenuLabel(exportPngEl, translateUiString('Image (.png)'));
+    if (standaloneExportMdBtn) updateMenuLabel(standaloneExportMdBtn, translateUiString('Markdown (.md)'));
+    if (standaloneExportHtmlBtn) updateMenuLabel(standaloneExportHtmlBtn, translateUiString('HTML'));
+    if (standaloneExportPdfBtn) updateMenuLabel(standaloneExportPdfBtn, translateUiString('PDF'));
+    if (standaloneExportPngBtn) updateMenuLabel(standaloneExportPngBtn, translateUiString('Image (.png)'));
 
     const mExportMdEl = document.getElementById('mobile-export-md');
     if (mExportMdEl) mExportMdEl.innerHTML = `<i class="lucide lucide-file-text"></i>${translateUiString('Markdown (.md)')}`;

@@ -14804,6 +14804,74 @@ html[data-standalone-readonly="true"][data-standalone-controls-collapsed="false"
   transform: rotate(-12deg) scale(1.1);
 }
 
+.standalone-export-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.standalone-export-toggle[aria-expanded="true"] {
+  color: #0969da;
+  border-color: #0969da;
+}
+
+[data-theme="dark"] .standalone-export-toggle[aria-expanded="true"] {
+  color: #58a6ff;
+  border-color: #58a6ff;
+}
+
+.standalone-export-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: max-content;
+  min-width: 176px;
+  max-width: min(220px, calc(100vw - 4.5rem));
+  padding: 7px;
+  border: 1px solid var(--menu-border);
+  border-radius: var(--menu-radius);
+  background-color: var(--menu-surface);
+  box-shadow: var(--menu-shadow);
+  z-index: 10010;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.standalone-export-menu[hidden] {
+  display: none !important;
+}
+
+.standalone-export-menu::after {
+  content: "";
+  position: absolute;
+  top: -0.65rem;
+  left: 0;
+  right: 0;
+  height: 0.65rem;
+}
+
+html[data-standalone-readonly="true"] .standalone-export-menu {
+  top: 50%;
+  right: calc(100% + 0.5rem);
+  transform: translateY(-50%);
+}
+
+html[data-standalone-readonly="true"] .standalone-export-menu::after {
+  top: 0;
+  bottom: 0;
+  left: auto;
+  right: -0.65rem;
+  width: 0.65rem;
+  height: auto;
+}
+
+.standalone-export-menu .app-menu-item {
+  grid-template-columns: 18px minmax(0, 1fr);
+  min-height: 38px;
+}
+
 body.standalone-file-mode .standalone-theme-toggle,
 html[data-standalone-mode="true"] .standalone-theme-toggle {
   display: flex !important;
@@ -15151,8 +15219,15 @@ html[data-slide-mode="true"] #markdown-preview[data-slide-kind="h2"] > h2:first-
    Preview appearance
    ========================================================================== */
 
-#visual-settings-modal {
+#visual-settings-modal,
+html[data-standalone-mode="true"] .reset-modal-overlay,
+body.standalone-file-mode .reset-modal-overlay {
   z-index: 10050;
+}
+
+html[data-standalone-mode="true"] .pdf-progress-overlay,
+body.standalone-file-mode .pdf-progress-overlay {
+  z-index: 10060;
 }
 
 .visual-settings-box {

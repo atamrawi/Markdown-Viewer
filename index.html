@@ -166,6 +166,25 @@
                 <button id="standalone-visual-settings" class="standalone-floating-btn standalone-visual-settings" type="button" aria-label="Preview Styling" title="Preview Styling" aria-haspopup="dialog" aria-controls="visual-settings-modal">
                     <i id="standalone-visual-settings-icon" class="lucide lucide-wand-sparkles" aria-hidden="true"></i>
                 </button>
+                <div class="standalone-export-wrapper" id="standalone-export-wrapper">
+                    <button id="standalone-export-toggle" class="standalone-floating-btn standalone-export-toggle" type="button" aria-label="Export document" aria-haspopup="menu" aria-expanded="false" aria-controls="standalone-export-menu" title="Export document">
+                        <i id="standalone-export-icon" class="lucide lucide-download" aria-hidden="true"></i>
+                    </button>
+                    <div class="standalone-export-menu app-command-menu" id="standalone-export-menu" role="menu" aria-label="Export document" hidden>
+                        <button type="button" class="dropdown-item app-menu-item standalone-export-item" role="menuitem" id="standalone-export-md">
+                            <i class="lucide lucide-file-text" aria-hidden="true"></i><span class="app-menu-label">Markdown (.md)</span>
+                        </button>
+                        <button type="button" class="dropdown-item app-menu-item standalone-export-item" role="menuitem" id="standalone-export-html">
+                            <i class="lucide lucide-file-code-2" aria-hidden="true"></i><span class="app-menu-label">HTML</span>
+                        </button>
+                        <button type="button" class="dropdown-item app-menu-item standalone-export-item" role="menuitem" id="standalone-export-pdf">
+                            <i class="lucide lucide-file-text" aria-hidden="true"></i><span class="app-menu-label">PDF</span>
+                        </button>
+                        <button type="button" class="dropdown-item app-menu-item standalone-export-item" role="menuitem" id="standalone-export-png">
+                            <i class="lucide lucide-file-image" aria-hidden="true"></i><span class="app-menu-label">Image (.png)</span>
+                        </button>
+                    </div>
+                </div>
                 <button id="standalone-theme-toggle" class="standalone-floating-btn standalone-theme-toggle" type="button" aria-label="Toggle appearance" title="Toggle appearance">
                     <i id="standalone-theme-icon" class="lucide lucide-moon" aria-hidden="true"></i>
                 </button>

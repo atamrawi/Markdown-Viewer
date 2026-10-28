@@ -390,11 +390,12 @@ test.describe('Remote URL and Parameter Viewer', () => {
 
   test('starts collapsed as settings icon, expands vertically on hover, collapses on mouse out, and shows slide status in status bar', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
+    const longTopicBody = Array.from({ length: 40 }, (_, idx) => `Paragraph ${idx + 1} with scrollable content inside the slide section.`).join('\n\n');
     await page.route('https://raw.githubusercontent.com/test-org/test-repo/main/docs/collapsible.md', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'text/markdown; charset=utf-8',
-        body: '# Title Slide\n\n## First Topic\n\nTopic details with words.\n\n## Second Topic\n\nMore details here.'
+        body: `# Title Slide\n\n## First Topic\n\n${longTopicBody}\n\n## Second Topic\n\n${longTopicBody}`
       });
     });
 
@@ -411,10 +412,13 @@ test.describe('Remote URL and Parameter Viewer', () => {
     const resetBtn = page.locator('#standalone-reset');
     const visualSettingsBtn = page.locator('#standalone-visual-settings');
     const visualSettingsModal = page.locator('#visual-settings-modal');
+    const exportToggleBtn = page.locator('#standalone-export-toggle');
+    const exportMenu = page.locator('#standalone-export-menu');
     const themeToggle = page.locator('#standalone-theme-toggle');
     const slideNav = page.locator('#standalone-slide-nav');
     const slideStatItem = page.locator('#slide-stat-item');
     const statusSlideCounter = page.locator('#status-slide-counter');
+    const previewPane = page.locator('.preview-pane');
 
     // Starts collapsed on load with the settings icon
     await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'true');
@@ -423,6 +427,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(controlsToggle).toHaveAttribute('aria-expanded', 'false');
     await expect(slideToggle).toBeHidden();
     await expect(visualSettingsBtn).toBeHidden();
+    await expect(exportToggleBtn).toBeHidden();
     await expect(themeToggle).toBeHidden();
     expect(await controlsItems.evaluate(el => el.inert)).toBe(true);
     await expect(slideStatItem).toBeHidden();
@@ -433,6 +438,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(controlsToggle).toHaveAttribute('aria-expanded', 'true');
     await expect(slideToggle).toBeVisible();
     await expect(visualSettingsBtn).toBeVisible();
+    await expect(exportToggleBtn).toBeVisible();
     await expect(themeToggle).toBeVisible();
     expect(await controlsItems.evaluate(el => el.inert)).toBe(false);
 
@@ -445,6 +451,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
       widthBtn.boundingBox(),
       resetBtn.boundingBox(),
       visualSettingsBtn.boundingBox(),
+      exportToggleBtn.boundingBox(),
       themeToggle.boundingBox()
     ]);
     for (let i = 1; i < rects.length; i += 1) {
@@ -484,14 +491,45 @@ test.describe('Remote URL and Parameter Viewer', () => {
     expect(await slideNav.evaluate(el => el.inert)).toBe(true);
     await expect(slideStatItem).toBeVisible();
 
-    // Moving the pointer wakes Prev/Next controls so the user can click Next, then auto-hides again after 2 seconds
+    // Scroll down on Slide 2, then move to Slide 3 and verify scroll resets to top (0)
+    await previewPane.evaluate(el => { el.scrollTop = 320; });
+    expect(await previewPane.evaluate(el => el.scrollTop)).toBeGreaterThan(200);
+
+    // Moving the pointer wakes Prev/Next controls so the user can click Next, resets scroll to top, then auto-hides after 2 seconds
     await page.mouse.move(260, 260);
     await expect(slideNav).toBeVisible();
     await page.locator('#standalone-slide-next').click();
     await expect(statusSlideCounter).toHaveText('3 / 3');
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    expect(await previewPane.evaluate(el => el.scrollTop)).toBe(0);
     await expect(slideNav).toBeVisible();
     await expect(slideNav).toBeHidden({ timeout: 3000 });
     await expect(slideStatItem).toBeVisible();
+
+    // Clicking Download in the collapsible panel opens the export menu and downloads the Markdown file
+    await controlsToggle.hover();
+    await expect(exportToggleBtn).toBeVisible();
+    await exportToggleBtn.click();
+    await expect(exportMenu).toBeVisible();
+    await expect(page.locator('#standalone-export-md')).toBeVisible();
+    await expect(page.locator('#standalone-export-html')).toBeVisible();
+    await expect(page.locator('#standalone-export-pdf')).toBeVisible();
+    await expect(page.locator('#standalone-export-png')).toBeVisible();
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#standalone-export-md').click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('collapsible.md');
+    await expect(exportMenu).toBeHidden();
+
+    // Clicking Export -> HTML opens the HTML export modal cleanly
+    await controlsToggle.hover();
+    await exportToggleBtn.click();
+    await page.locator('#standalone-export-html').click();
+    await expect(page.locator('#html-export-modal')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#html-export-modal')).toBeHidden();
+    await expect(page.locator('html')).toHaveAttribute('data-slide-mode', 'true');
 
     // Clicking Preview Styling opens the customization modal, applies changes, and closes via Escape without exiting Slide Mode
     await controlsToggle.hover();
