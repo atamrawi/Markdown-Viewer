@@ -144,7 +144,10 @@
 <body>
     <div class="app-container">
         <div class="standalone-floating-controls" id="standalone-floating-controls">
-            <div class="standalone-floating-controls-items" id="standalone-floating-controls-items">
+            <button id="standalone-controls-toggle" class="standalone-floating-btn standalone-controls-toggle" type="button" aria-label="Reader settings and controls" aria-expanded="false" aria-controls="standalone-floating-controls-items" title="Reader controls">
+                <i id="standalone-controls-toggle-icon" class="lucide lucide-settings" aria-hidden="true"></i>
+            </button>
+            <div class="standalone-floating-controls-items" id="standalone-floating-controls-items" aria-hidden="true">
                 <button id="standalone-slide-toggle" class="standalone-floating-btn standalone-slide-toggle" type="button" aria-label="Enter slide mode" aria-pressed="false" title="Enter slide mode">
                     <i id="standalone-slide-icon" class="lucide lucide-presentation" aria-hidden="true"></i>
                 </button>
@@ -164,9 +167,6 @@
                     <i id="standalone-theme-icon" class="lucide lucide-moon" aria-hidden="true"></i>
                 </button>
             </div>
-            <button id="standalone-controls-toggle" class="standalone-floating-btn standalone-controls-toggle" type="button" aria-label="Collapse controls" aria-expanded="true" aria-controls="standalone-floating-controls-items" title="Collapse controls">
-                <i id="standalone-controls-toggle-icon" class="lucide lucide-chevron-right" aria-hidden="true"></i>
-            </button>
         </div>
         <nav class="standalone-slide-nav" id="standalone-slide-nav" aria-label="Slide navigation" hidden>
             <button id="standalone-slide-prev" class="standalone-slide-nav-btn" type="button" aria-label="Previous slide" title="Previous slide (←)">

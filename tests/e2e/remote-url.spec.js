@@ -35,6 +35,11 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(page.locator('#tab-bar')).toBeHidden();
     await expect(page.locator('#markdown-format-toolbar')).toBeHidden();
 
+    // Controls start collapsed under the top-right settings icon; hover to expand
+    const controlsToggle = page.locator('#standalone-controls-toggle');
+    await expect(controlsToggle).toBeVisible();
+    await controlsToggle.hover();
+
     // Verify top-right floating theme toggle is visible and works
     const standaloneToggle = page.locator('#standalone-theme-toggle');
     await expect(standaloneToggle).toBeVisible();
@@ -84,6 +89,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/guide.md&readonly=1&fontSize=70');
     await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
     await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '70');
+    await controlsToggle.hover();
     await expect(fontIncBtn).toBeEnabled();
     await fontIncBtn.click();
     await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '72');
@@ -113,6 +119,9 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(page.locator('body')).toHaveClass(/standalone-file-mode/);
     await expect(page.locator('.app-header')).toBeHidden();
     await expect(page.locator('#tab-bar')).toBeHidden();
+    await expect(page.locator('#standalone-controls-toggle')).toBeVisible();
+    await expect(page.locator('#standalone-theme-toggle')).toBeHidden();
+    await page.locator('#standalone-controls-toggle').hover();
     await expect(page.locator('#standalone-theme-toggle')).toBeVisible();
   });
 
@@ -316,6 +325,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     const nextBtn = page.locator('#standalone-slide-next');
     const counter = page.locator('#standalone-slide-counter');
 
+    await page.locator('#standalone-controls-toggle').hover();
     await expect(slideToggle).toBeVisible();
     await expect(slideNav).toBeHidden();
 
@@ -378,7 +388,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(preview.locator('h1')).toHaveText('Architecture Presentation');
   });
 
-  test('supports collapsible controls starting expanded by default and shows slide status in status bar during slide mode', async ({ page }) => {
+  test('starts collapsed as settings icon, expands vertically on hover, collapses on mouse out, and shows slide status in status bar', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.route('https://raw.githubusercontent.com/test-org/test-repo/main/docs/collapsible.md', async route => {
       await route.fulfill({
@@ -392,22 +402,54 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
 
     const controlsToggle = page.locator('#standalone-controls-toggle');
+    const controlsToggleIcon = page.locator('#standalone-controls-toggle-icon');
     const controlsItems = page.locator('#standalone-floating-controls-items');
     const slideToggle = page.locator('#standalone-slide-toggle');
+    const fontDecBtn = page.locator('#standalone-font-decrease');
+    const fontIncBtn = page.locator('#standalone-font-increase');
+    const widthBtn = page.locator('#standalone-width-toggle');
+    const resetBtn = page.locator('#standalone-reset');
     const themeToggle = page.locator('#standalone-theme-toggle');
     const slideNav = page.locator('#standalone-slide-nav');
     const slideStatItem = page.locator('#slide-stat-item');
     const statusSlideCounter = page.locator('#status-slide-counter');
 
-    // Starts expanded on first visit
-    await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'false');
+    // Starts collapsed on load with the settings icon
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'true');
     await expect(controlsToggle).toBeVisible();
+    await expect(controlsToggleIcon).toHaveClass(/lucide-settings/);
+    await expect(controlsToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(slideToggle).toBeHidden();
+    await expect(themeToggle).toBeHidden();
+    expect(await controlsItems.evaluate(el => el.inert)).toBe(true);
+    await expect(slideStatItem).toBeHidden();
+
+    // Hover over the settings icon: expands vertically downward
+    await controlsToggle.hover();
+    await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'false');
     await expect(controlsToggle).toHaveAttribute('aria-expanded', 'true');
     await expect(slideToggle).toBeVisible();
     await expect(themeToggle).toBeVisible();
-    await expect(slideStatItem).toBeHidden();
+    expect(await controlsItems.evaluate(el => el.inert)).toBe(false);
 
-    // Enter Slide Mode and verify status bar shows Slide X / Y alongside Min Read, Words, and Chars
+    // Verify vertical stacking beneath the settings icon
+    const rects = await Promise.all([
+      controlsToggle.boundingBox(),
+      slideToggle.boundingBox(),
+      fontDecBtn.boundingBox(),
+      fontIncBtn.boundingBox(),
+      widthBtn.boundingBox(),
+      resetBtn.boundingBox(),
+      themeToggle.boundingBox()
+    ]);
+    for (let i = 1; i < rects.length; i += 1) {
+      expect(rects[i].y).toBeGreaterThan(rects[i - 1].y);
+      const prevCenterX = rects[i - 1].x + rects[i - 1].width / 2;
+      const currCenterX = rects[i].x + rects[i].width / 2;
+      expect(Math.abs(currCenterX - prevCenterX)).toBeLessThanOrEqual(1);
+    }
+
+    // Enter Slide Mode while hovered and verify status bar shows Slide X / Y alongside Min Read, Words, and Chars
     await slideToggle.click();
     await expect(page.locator('html')).toHaveAttribute('data-slide-mode', 'true');
     await expect(slideNav).toBeVisible();
@@ -417,43 +459,23 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(page.locator('#word-count')).toBeVisible();
     await expect(page.locator('#char-count')).toBeVisible();
 
-    // Record toggle position to verify it stays stationary when collapsing
-    const beforeRect = await controlsToggle.boundingBox();
-
-    // Collapse controls: floating buttons and bottom slide nav tuck away while status bar retains slide counter
-    await controlsToggle.click();
+    // Mouse out collapses the floating controls while keeping Slide Mode and status bar active
+    await page.mouse.move(120, 120);
     await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'true');
     await expect(controlsToggle).toHaveAttribute('aria-expanded', 'false');
     await expect(slideToggle).toBeHidden();
     await expect(themeToggle).toBeHidden();
-    await expect(slideNav).toBeHidden();
     expect(await controlsItems.evaluate(el => el.inert)).toBe(true);
+    await expect(slideNav).toBeVisible();
+    await expect(slideStatItem).toBeVisible();
 
-    const afterRect = await controlsToggle.boundingBox();
-    const beforeCenterX = beforeRect.x + beforeRect.width / 2;
-    const afterCenterX = afterRect.x + afterRect.width / 2;
-    expect(Math.abs(afterCenterX - beforeCenterX)).toBeLessThanOrEqual(1);
-    expect(Math.abs(afterRect.y - beforeRect.y)).toBeLessThanOrEqual(4);
-
-    // Navigating slides with keyboard while collapsed updates the status bar slide counter
+    // Advancing slides updates the status bar slide counter
     await page.keyboard.press('ArrowRight');
     await expect(statusSlideCounter).toHaveText('2 / 3');
-    await expect(slideStatItem).toBeVisible();
 
     // Exiting slide mode hides the slide stat item from the status bar
     await page.keyboard.press('Escape');
     await expect(slideStatItem).toBeHidden();
-
-    // Collapsed preference persists across reloads without flash
-    await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'true');
-    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
-    await expect(themeToggle).toBeHidden();
-
-    // URL parameter override ?controls=expanded overrides saved localStorage preference
-    await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/collapsible.md&controls=expanded');
-    await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'false');
-    await expect(themeToggle).toBeVisible();
   });
 });
 

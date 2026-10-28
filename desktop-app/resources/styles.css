@@ -14664,14 +14664,26 @@ body.standalone-file-mode .standalone-floating-controls {
   display: flex !important;
 }
 
+html[data-standalone-readonly="true"] .standalone-floating-controls {
+  flex-direction: column;
+  gap: 0;
+  padding: 0.25rem;
+  margin: -0.25rem;
+}
+
 .standalone-floating-controls-items {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transform-origin: right center;
+  transform-origin: top center;
   transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
     transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
     visibility 0s linear 0s;
+}
+
+html[data-standalone-readonly="true"] .standalone-floating-controls-items {
+  flex-direction: column;
+  padding-top: 0.5rem;
 }
 
 .standalone-controls-toggle[hidden],
@@ -14679,28 +14691,42 @@ html[data-standalone-readonly="false"] .standalone-controls-toggle {
   display: none !important;
 }
 
-html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-floating-controls {
+html[data-standalone-readonly="true"]:not([data-standalone-controls-collapsed="false"]) .standalone-floating-controls {
   pointer-events: none;
 }
 
-html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-floating-controls-items {
+html[data-standalone-readonly="true"]:not([data-standalone-controls-collapsed="false"]) .standalone-floating-controls-items {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translateX(0.75rem) scale(0.92);
-  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-    visibility 0s linear 0.18s;
+  transform: translateY(-0.5rem) scale(0.92);
+  transition: opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0.16s;
 }
 
-html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-controls-toggle {
+html[data-standalone-readonly="true"]:not([data-standalone-controls-collapsed="false"]) .standalone-controls-toggle {
   pointer-events: auto;
-  opacity: 0.68;
+  opacity: 0.72;
 }
 
-html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-controls-toggle:hover,
-html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-controls-toggle:focus-visible {
+html[data-standalone-readonly="true"] .standalone-controls-toggle:hover,
+html[data-standalone-readonly="true"] .standalone-controls-toggle:focus-visible,
+html[data-standalone-readonly="true"][data-standalone-controls-collapsed="false"] .standalone-controls-toggle {
   opacity: 1;
+  color: #0969da;
+  border-color: #0969da;
+}
+
+html[data-theme="dark"][data-standalone-readonly="true"] .standalone-controls-toggle:hover,
+html[data-theme="dark"][data-standalone-readonly="true"] .standalone-controls-toggle:focus-visible,
+html[data-theme="dark"][data-standalone-readonly="true"][data-standalone-controls-collapsed="false"] .standalone-controls-toggle {
+  color: #58a6ff;
+  border-color: #58a6ff;
+}
+
+html[data-standalone-readonly="true"][data-standalone-controls-collapsed="false"] #standalone-controls-toggle-icon {
+  transform: rotate(45deg);
 }
 
 .standalone-floating-btn,
@@ -14735,7 +14761,7 @@ html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"]
 .standalone-theme-toggle:hover,
 .standalone-floating-btn:focus-visible,
 .standalone-theme-toggle:focus-visible {
-  transform: translateY(-2px) scale(1.06);
+  transform: scale(1.08);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   color: #0969da;
   border-color: #0969da;
@@ -14873,16 +14899,6 @@ html[data-theme="dark"][data-slide-mode="true"] .standalone-slide-toggle:hover,
 
 html[data-slide-mode="true"] .standalone-slide-nav:not([hidden]) {
   display: flex;
-}
-
-html[data-standalone-readonly="true"][data-standalone-controls-collapsed="true"] .standalone-slide-nav {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transform: translateX(-50%) translateY(0.65rem) scale(0.95);
-  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-    visibility 0s linear 0.18s;
 }
 
 [data-theme="dark"] .standalone-slide-nav {
@@ -15064,6 +15080,10 @@ html[data-slide-mode="true"] #markdown-preview[data-slide-kind="h2"] > h2:first-
     top: 0.875rem;
     right: 0.875rem;
     gap: 0.35rem;
+  }
+
+  html[data-standalone-readonly="true"] .standalone-floating-controls-items {
+    padding-top: 0.35rem;
   }
 
   .standalone-floating-controls-items {

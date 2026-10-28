@@ -20,19 +20,7 @@
       const isReadOnly = searchReadOnly !== '0' && searchReadOnly !== 'false' && hashReadOnly !== '0' && hashReadOnly !== 'false';
       document.documentElement.dataset.standaloneReadonly = isReadOnly ? 'true' : 'false';
       if (isReadOnly && document.documentElement.dataset.standaloneControlsCollapsed === undefined) {
-        const controlsParam = (searchParams.get('controls') || hashParams.get('controls') || '').toLowerCase();
-        const collapsedParam = (searchParams.get('collapsed') || hashParams.get('collapsed') || '').toLowerCase();
-        let isControlsCollapsed = false;
-        if (controlsParam === 'collapsed' || controlsParam === '0' || controlsParam === 'false' || collapsedParam === '1' || collapsedParam === 'true' || collapsedParam === 'yes') {
-          isControlsCollapsed = true;
-        } else if (controlsParam === 'expanded' || controlsParam === '1' || controlsParam === 'true' || collapsedParam === '0' || collapsedParam === 'false' || collapsedParam === 'no') {
-          isControlsCollapsed = false;
-        } else {
-          try {
-            isControlsCollapsed = localStorage.getItem('markdownViewerStandaloneControlsCollapsed') === 'true';
-          } catch (_) {}
-        }
-        document.documentElement.dataset.standaloneControlsCollapsed = isControlsCollapsed ? 'true' : 'false';
+        document.documentElement.dataset.standaloneControlsCollapsed = 'true';
       }
     }
   } catch (_) {}
@@ -71,25 +59,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     const slidesParam = (searchParams.get('slides') || searchParams.get('slide') || hashParams.get('slides') || hashParams.get('slide') || '').toLowerCase();
     const modeParam = (searchParams.get('mode') || hashParams.get('mode') || '').toLowerCase();
     return slidesParam === '1' || slidesParam === 'true' || slidesParam === 'yes' || modeParam === 'slides' || modeParam === 'slide';
-  }
-
-  const STANDALONE_CONTROLS_COLLAPSED_KEY = 'markdownViewerStandaloneControlsCollapsed';
-
-  function resolveStandaloneControlsCollapsedPreference() {
-    const { searchParams, hashParams } = getRemoteUrlParams();
-    const controlsParam = (searchParams.get('controls') || hashParams.get('controls') || '').toLowerCase();
-    const collapsedParam = (searchParams.get('collapsed') || hashParams.get('collapsed') || '').toLowerCase();
-    if (controlsParam === 'collapsed' || controlsParam === '0' || controlsParam === 'false' || collapsedParam === '1' || collapsedParam === 'true' || collapsedParam === 'yes') {
-      return true;
-    }
-    if (controlsParam === 'expanded' || controlsParam === '1' || controlsParam === 'true' || collapsedParam === '0' || collapsedParam === 'false' || collapsedParam === 'no') {
-      return false;
-    }
-    try {
-      return localStorage.getItem(STANDALONE_CONTROLS_COLLAPSED_KEY) === 'true';
-    } catch (_) {
-      return false;
-    }
   }
 
   function isStandaloneReadOnlyMode() {
@@ -557,6 +526,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const toggleSyncButton = document.getElementById("toggle-sync");
   const editorPane = document.getElementById("markdown-editor");
   const previewPane = document.querySelector(".preview-pane");
+  const standaloneFloatingControls = document.getElementById("standalone-floating-controls");
   const standaloneFloatingControlsItems = document.getElementById("standalone-floating-controls-items");
   const standaloneControlsToggleBtn = document.getElementById("standalone-controls-toggle");
   const standaloneControlsToggleIcon = document.getElementById("standalone-controls-toggle-icon");
@@ -15384,27 +15354,18 @@ ${selector} .arrowheadPath {
       });
   }
 
-  function setStandaloneControlsCollapsed(collapsed, options) {
-    const settings = options || {};
+  function setStandaloneControlsCollapsed(collapsed) {
     const readOnly = isStandaloneReadOnlyMode();
     const nextCollapsed = Boolean(readOnly && collapsed);
     if (standaloneControlsToggleBtn) {
       standaloneControlsToggleBtn.hidden = !readOnly;
       standaloneControlsToggleBtn.setAttribute('aria-expanded', nextCollapsed ? 'false' : 'true');
-      const label = nextCollapsed ? 'Expand controls' : 'Collapse controls';
-      standaloneControlsToggleBtn.setAttribute('aria-label', label);
-      standaloneControlsToggleBtn.title = label;
     }
     if (standaloneControlsToggleIcon) {
-      standaloneControlsToggleIcon.className = 'lucide lucide-' + (nextCollapsed ? 'chevron-left' : 'chevron-right');
+      standaloneControlsToggleIcon.className = 'lucide lucide-settings';
     }
     if (readOnly) {
       document.documentElement.dataset.standaloneControlsCollapsed = nextCollapsed ? 'true' : 'false';
-      if (settings.persist) {
-        try {
-          localStorage.setItem(STANDALONE_CONTROLS_COLLAPSED_KEY, nextCollapsed ? 'true' : 'false');
-        } catch (_) {}
-      }
     } else {
       delete document.documentElement.dataset.standaloneControlsCollapsed;
     }
@@ -15415,9 +15376,6 @@ ${selector} .arrowheadPath {
       } else {
         standaloneFloatingControlsItems.removeAttribute('aria-hidden');
       }
-    }
-    if (standaloneSlideNav) {
-      standaloneSlideNav.inert = !standaloneSlideModeActive || nextCollapsed;
     }
   }
 
@@ -15431,12 +15389,10 @@ ${selector} .arrowheadPath {
       delete document.documentElement.dataset.standaloneReadonly;
     }
     if (readOnly) {
-      const currentCollapsed = document.documentElement.dataset.standaloneControlsCollapsed !== undefined
-        ? document.documentElement.dataset.standaloneControlsCollapsed === 'true'
-        : resolveStandaloneControlsCollapsedPreference();
-      setStandaloneControlsCollapsed(currentCollapsed, { persist: false });
+      const currentCollapsed = document.documentElement.dataset.standaloneControlsCollapsed !== 'false';
+      setStandaloneControlsCollapsed(currentCollapsed);
     } else {
-      setStandaloneControlsCollapsed(false, { persist: false });
+      setStandaloneControlsCollapsed(false);
     }
     if (standaloneSlideToggleBtn) {
       standaloneSlideToggleBtn.hidden = !canUseSlides;
@@ -15506,8 +15462,7 @@ ${selector} .arrowheadPath {
     }
     if (standaloneSlideNav) {
       standaloneSlideNav.hidden = !standaloneSlideModeActive;
-      const controlsCollapsed = isStandaloneReadOnlyMode() && document.documentElement.dataset.standaloneControlsCollapsed === 'true';
-      standaloneSlideNav.inert = !standaloneSlideModeActive || controlsCollapsed;
+      standaloneSlideNav.inert = !standaloneSlideModeActive;
     }
   }
 
@@ -25778,13 +25733,68 @@ ${selector} .arrowheadPath {
     });
   }
 
-  if (standaloneControlsToggleBtn) {
-    standaloneControlsToggleBtn.addEventListener('click', function() {
-      const currentlyCollapsed = document.documentElement.dataset.standaloneControlsCollapsed === 'true';
-      setStandaloneControlsCollapsed(!currentlyCollapsed, { persist: true });
+  let standaloneControlsCollapseTimer = null;
+  let standaloneControlsLastPointerType = 'mouse';
+
+  function clearStandaloneControlsCollapseTimer() {
+    if (standaloneControlsCollapseTimer !== null) {
+      clearTimeout(standaloneControlsCollapseTimer);
+      standaloneControlsCollapseTimer = null;
+    }
+  }
+
+  if (standaloneFloatingControls && standaloneControlsToggleBtn) {
+    standaloneFloatingControls.addEventListener('pointerdown', function(event) {
+      if (event.pointerType) {
+        standaloneControlsLastPointerType = event.pointerType;
+      }
     });
+
+    standaloneControlsToggleBtn.addEventListener('mouseenter', function() {
+      if (!isStandaloneReadOnlyMode()) return;
+      clearStandaloneControlsCollapseTimer();
+      setStandaloneControlsCollapsed(false);
+    });
+
+    standaloneFloatingControls.addEventListener('mouseenter', function() {
+      if (!isStandaloneReadOnlyMode()) return;
+      if (document.documentElement.dataset.standaloneControlsCollapsed === 'false') {
+        clearStandaloneControlsCollapseTimer();
+      }
+    });
+
+    standaloneFloatingControls.addEventListener('mouseleave', function() {
+      if (!isStandaloneReadOnlyMode()) return;
+      clearStandaloneControlsCollapseTimer();
+      standaloneControlsCollapseTimer = setTimeout(function() {
+        standaloneControlsCollapseTimer = null;
+        if (document.activeElement && standaloneFloatingControls.contains(document.activeElement)) {
+          document.activeElement.blur();
+        }
+        setStandaloneControlsCollapsed(true);
+      }, 60);
+    });
+
+    standaloneControlsToggleBtn.addEventListener('click', function(event) {
+      if (!isStandaloneReadOnlyMode()) return;
+      if (event.detail === 0 || standaloneControlsLastPointerType !== 'mouse') {
+        clearStandaloneControlsCollapseTimer();
+        const currentlyCollapsed = document.documentElement.dataset.standaloneControlsCollapsed !== 'false';
+        setStandaloneControlsCollapsed(!currentlyCollapsed);
+      }
+    });
+
+    document.addEventListener('pointerdown', function(event) {
+      if (!isStandaloneReadOnlyMode()) return;
+      if (document.documentElement.dataset.standaloneControlsCollapsed === 'false' &&
+          !standaloneFloatingControls.contains(event.target)) {
+        clearStandaloneControlsCollapseTimer();
+        setStandaloneControlsCollapsed(true);
+      }
+    });
+
     if (hasRemoteUrlParameter()) {
-      setStandaloneControlsCollapsed(resolveStandaloneControlsCollapsedPreference(), { persist: false });
+      setStandaloneControlsCollapsed(isStandaloneReadOnlyMode());
     }
   }
 
