@@ -14901,6 +14901,16 @@ html[data-slide-mode="true"] .standalone-slide-nav:not([hidden]) {
   display: flex;
 }
 
+.standalone-slide-nav.is-auto-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(0.5rem);
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0.2s;
+}
+
 [data-theme="dark"] .standalone-slide-nav {
   background: rgba(22, 27, 34, 0.9);
   border-color: rgba(240, 246, 252, 0.16);

@@ -469,9 +469,24 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(slideNav).toBeVisible();
     await expect(slideStatItem).toBeVisible();
 
-    // Advancing slides updates the status bar slide counter
+    // Advancing slides reveals Prev/Next controls, updates status bar counter, then hides Prev/Next after 2 seconds
     await page.keyboard.press('ArrowRight');
     await expect(statusSlideCounter).toHaveText('2 / 3');
+    await expect(slideNav).toBeVisible();
+    await page.waitForTimeout(1000);
+    await expect(slideNav).toBeVisible();
+    await expect(slideNav).toBeHidden({ timeout: 2000 });
+    expect(await slideNav.evaluate(el => el.inert)).toBe(true);
+    await expect(slideStatItem).toBeVisible();
+
+    // Moving the pointer wakes Prev/Next controls so the user can click Next, then auto-hides again after 2 seconds
+    await page.mouse.move(260, 260);
+    await expect(slideNav).toBeVisible();
+    await page.locator('#standalone-slide-next').click();
+    await expect(statusSlideCounter).toHaveText('3 / 3');
+    await expect(slideNav).toBeVisible();
+    await expect(slideNav).toBeHidden({ timeout: 3000 });
+    await expect(slideStatItem).toBeVisible();
 
     // Exiting slide mode hides the slide stat item from the status bar
     await page.keyboard.press('Escape');

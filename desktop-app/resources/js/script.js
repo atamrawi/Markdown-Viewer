@@ -537,11 +537,16 @@ document.addEventListener("DOMContentLoaded", async function () {
   const standaloneSlideCounter = document.getElementById("standalone-slide-counter");
   const slideStatItem = document.getElementById("slide-stat-item");
   const statusSlideCounter = document.getElementById("status-slide-counter");
+  const SLIDE_NAV_AUTO_HIDE_MS = 2000;
   let standaloneSlideModeActive = false;
   let standaloneSlides = [];
   let standaloneSlideIndex = 0;
   let standaloneSlideSourceContent = null;
   let standaloneSlideReferenceDefs = null;
+  let standaloneSlideNavAutoHidden = false;
+  let standaloneSlideNavHideTimer = null;
+  let lastSlideNavPointerX = null;
+  let lastSlideNavPointerY = null;
   const readingTimeElement = document.getElementById("reading-time");
   const wordCountElement = document.getElementById("word-count");
   const charCountElement = document.getElementById("char-count");
@@ -15460,10 +15465,50 @@ ${selector} .arrowheadPath {
       standaloneSlideToggleBtn.setAttribute('aria-label', standaloneSlideModeActive ? 'Exit slide mode' : 'Enter slide mode');
       standaloneSlideToggleBtn.title = standaloneSlideModeActive ? 'Exit slide mode (Esc)' : 'Enter slide mode';
     }
-    if (standaloneSlideNav) {
-      standaloneSlideNav.hidden = !standaloneSlideModeActive;
-      standaloneSlideNav.inert = !standaloneSlideModeActive;
+    setStandaloneSlideNavAutoHidden(standaloneSlideNavAutoHidden);
+  }
+
+  function clearStandaloneSlideNavAutoHideTimer() {
+    if (standaloneSlideNavHideTimer !== null) {
+      clearTimeout(standaloneSlideNavHideTimer);
+      standaloneSlideNavHideTimer = null;
     }
+  }
+
+  function setStandaloneSlideNavAutoHidden(autoHidden) {
+    standaloneSlideNavAutoHidden = Boolean(standaloneSlideModeActive && autoHidden);
+    if (!standaloneSlideNav) return;
+    standaloneSlideNav.classList.toggle('is-auto-hidden', standaloneSlideNavAutoHidden);
+    if (!standaloneSlideModeActive) {
+      standaloneSlideNav.hidden = true;
+      standaloneSlideNav.inert = true;
+      standaloneSlideNav.removeAttribute('aria-hidden');
+      return;
+    }
+    standaloneSlideNav.hidden = false;
+    standaloneSlideNav.inert = standaloneSlideNavAutoHidden;
+    if (standaloneSlideNavAutoHidden) {
+      standaloneSlideNav.setAttribute('aria-hidden', 'true');
+      if (document.activeElement && standaloneSlideNav.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
+    } else {
+      standaloneSlideNav.removeAttribute('aria-hidden');
+    }
+  }
+
+  function revealStandaloneSlideNav() {
+    clearStandaloneSlideNavAutoHideTimer();
+    if (!standaloneSlideModeActive) {
+      setStandaloneSlideNavAutoHidden(false);
+      return;
+    }
+    setStandaloneSlideNavAutoHidden(false);
+    standaloneSlideNavHideTimer = setTimeout(function() {
+      standaloneSlideNavHideTimer = null;
+      if (!standaloneSlideModeActive) return;
+      setStandaloneSlideNavAutoHidden(true);
+    }, SLIDE_NAV_AUTO_HIDE_MS);
   }
 
   function renderActiveStandaloneSlide(options) {
@@ -15513,19 +15558,26 @@ ${selector} .arrowheadPath {
     if (markdownPreview && markdownPreview.dataset.renderState === 'error') return false;
     rebuildStandaloneSlideDeck(markdownEditor.value);
     standaloneSlideModeActive = true;
+    standaloneSlideNavAutoHidden = false;
+    lastSlideNavPointerX = null;
+    lastSlideNavPointerY = null;
     standaloneSlideIndex = typeof initialIndex === 'number'
       ? Math.max(0, Math.min(standaloneSlides.length - 1, initialIndex))
       : 0;
     document.documentElement.dataset.slideMode = 'true';
-    updateStandaloneSlideNavUI();
     renderActiveStandaloneSlide();
+    revealStandaloneSlideNav();
     return true;
   }
 
   function exitStandaloneSlideMode(options) {
     const settings = options || {};
     const wasActive = standaloneSlideModeActive || document.documentElement.dataset.slideMode === 'true';
+    clearStandaloneSlideNavAutoHideTimer();
     standaloneSlideModeActive = false;
+    standaloneSlideNavAutoHidden = false;
+    lastSlideNavPointerX = null;
+    lastSlideNavPointerY = null;
     delete document.documentElement.dataset.slideMode;
     if (markdownPreview) {
       delete markdownPreview.dataset.slideKind;
@@ -15554,6 +15606,7 @@ ${selector} .arrowheadPath {
     if (clamped === standaloneSlideIndex) return false;
     standaloneSlideIndex = clamped;
     renderActiveStandaloneSlide();
+    revealStandaloneSlideNav();
     return true;
   }
 
@@ -25815,6 +25868,41 @@ ${selector} .arrowheadPath {
       goToStandaloneSlide(standaloneSlideIndex + 1);
     });
   }
+
+  document.addEventListener('pointerdown', function(event) {
+    if (!standaloneSlideModeActive || !isStandaloneReadOnlyMode()) return;
+    if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+      lastSlideNavPointerX = event.clientX;
+      lastSlideNavPointerY = event.clientY;
+    }
+    if (event.pointerType === 'touch' &&
+        (!standaloneFloatingControls || !standaloneFloatingControls.contains(event.target)) &&
+        (!standaloneSlideNav || !standaloneSlideNav.contains(event.target))) {
+      revealStandaloneSlideNav();
+    }
+  });
+
+  document.addEventListener('pointermove', function(event) {
+    if (!standaloneSlideModeActive || !isStandaloneReadOnlyMode()) return;
+    if (event.pointerType === 'touch') return;
+    if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number') return;
+    if (standaloneSlideNavAutoHidden) {
+      lastSlideNavPointerX = event.clientX;
+      lastSlideNavPointerY = event.clientY;
+      revealStandaloneSlideNav();
+      return;
+    }
+    if (lastSlideNavPointerX === null || lastSlideNavPointerY === null) {
+      lastSlideNavPointerX = event.clientX;
+      lastSlideNavPointerY = event.clientY;
+      return;
+    }
+    if (Math.abs(event.clientX - lastSlideNavPointerX) >= 2 || Math.abs(event.clientY - lastSlideNavPointerY) >= 2) {
+      lastSlideNavPointerX = event.clientX;
+      lastSlideNavPointerY = event.clientY;
+      revealStandaloneSlideNav();
+    }
+  });
 
   document.addEventListener('keydown', function(event) {
     if (!standaloneSlideModeActive || !isStandaloneReadOnlyMode()) return;
