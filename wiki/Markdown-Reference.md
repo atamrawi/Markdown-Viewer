@@ -209,6 +209,12 @@ DOMPurify sanitization removes unsafe tags and attributes. Inline scripts and ha
 
 > [!CAUTION]
 > A serious warning.
+
+> [!DISCUSSION]
+> Discussion topic or prompt for readers.
+
+> [!ACTIVITY]
+> Hands-on exercise or active task.
 ```
 
 ### Emoji

@@ -3451,8 +3451,16 @@ document.addEventListener("DOMContentLoaded", async function () {
       viewBox: "0 0 512 512",
       path: "M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM175 175c9.4-9.4 24.6-9.4 33.9 0l47 47 47-47c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-47 47 47 47c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-47-47-47 47c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l47-47-47-47c-9.4-9.4-9.4-24.6 0-33.9z",
     },
+    discussion: {
+      label: "Discussion",
+      emoji: "💬",
+    },
+    activity: {
+      label: "Activity",
+      emoji: "🛠️",
+    },
   };
-  const GITHUB_ALERT_MARKER_REGEX = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:(?:\s|&nbsp;|<br\s*\/?>)+|$)/i;
+  const GITHUB_ALERT_MARKER_REGEX = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|DISCUSSION|ACTIVITY)\](?:(?:\s|&nbsp;|<br\s*\/?>)+|$)/i;
 
   function enhanceGitHubAlerts(container) {
     if (!container) return;
@@ -3483,7 +3491,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       icon.className = "markdown-alert-icon";
       icon.setAttribute("aria-hidden", "true");
 
-      if (alertMeta.path) {
+      if (alertMeta.emoji) {
+        icon.textContent = alertMeta.emoji;
+      } else if (alertMeta.path) {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", alertMeta.viewBox || "0 0 512 512");
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -19778,7 +19788,9 @@ ${selector} .arrowheadPath {
     const icon = document.createElement('span');
     icon.className = 'markdown-alert-icon';
     icon.setAttribute('aria-hidden', 'true');
-    if (meta.path) {
+    if (meta.emoji) {
+      icon.textContent = meta.emoji;
+    } else if (meta.path) {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('viewBox', meta.viewBox || '0 0 512 512');
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -26602,8 +26614,8 @@ ${selector} .arrowheadPath {
           height: 16px;
           fill: currentColor;
       }
-      .markdown-alert-note { color: ${isDarkTheme ? "#4493f8" : "#0969da"}; border-left-color: ${isDarkTheme ? "#4493f8" : "#0969da"}; background-color: ${isDarkTheme ? "rgba(31, 111, 235, 0.15)" : "#ddf4ff"}; }
-      .markdown-alert-tip { color: ${isDarkTheme ? "#3fb950" : "#1a7f37"}; border-left-color: ${isDarkTheme ? "#3fb950" : "#1a7f37"}; background-color: ${isDarkTheme ? "rgba(35, 134, 54, 0.15)" : "#dafbe1"}; }
+      .markdown-alert-note, .markdown-alert-discussion { color: ${isDarkTheme ? "#4493f8" : "#0969da"}; border-left-color: ${isDarkTheme ? "#4493f8" : "#0969da"}; background-color: ${isDarkTheme ? "rgba(31, 111, 235, 0.15)" : "#ddf4ff"}; }
+      .markdown-alert-tip, .markdown-alert-activity { color: ${isDarkTheme ? "#3fb950" : "#1a7f37"}; border-left-color: ${isDarkTheme ? "#3fb950" : "#1a7f37"}; background-color: ${isDarkTheme ? "rgba(35, 134, 54, 0.15)" : "#dafbe1"}; }
       .markdown-alert-important { color: ${isDarkTheme ? "#ab7df8" : "#8250df"}; border-left-color: ${isDarkTheme ? "#ab7df8" : "#8250df"}; background-color: ${isDarkTheme ? "rgba(137, 87, 229, 0.15)" : "#fbefff"}; }
       .markdown-alert-warning { color: ${isDarkTheme ? "#d29922" : "#9a6700"}; border-left-color: ${isDarkTheme ? "#d29922" : "#9a6700"}; background-color: ${isDarkTheme ? "rgba(210, 153, 34, 0.18)" : "#fff8c5"}; }
       .markdown-alert-caution { color: ${isDarkTheme ? "#f85149" : "#cf222e"}; border-left-color: ${isDarkTheme ? "#f85149" : "#cf222e"}; background-color: ${isDarkTheme ? "rgba(248, 81, 73, 0.18)" : "#ffebe9"}; }

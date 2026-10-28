@@ -17,3 +17,7 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local linked repositories / test documents
+AI-Enabled-Software-Engineering
+

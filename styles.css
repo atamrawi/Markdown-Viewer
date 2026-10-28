@@ -2841,8 +2841,11 @@ body {
 
 .markdown-body .markdown-alert-icon {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 16px;
   height: 16px;
+  line-height: 1;
 }
 
 .markdown-body .markdown-alert-icon svg {
@@ -2851,13 +2854,15 @@ body {
   fill: currentColor;
 }
 
-.markdown-body .markdown-alert-note {
+.markdown-body .markdown-alert-note,
+.markdown-body .markdown-alert-discussion {
   color: #0969da;
   border-left-color: #0969da;
   background-color: #ddf4ff;
 }
 
-.markdown-body .markdown-alert-tip {
+.markdown-body .markdown-alert-tip,
+.markdown-body .markdown-alert-activity {
   color: #1a7f37;
   border-left-color: #1a7f37;
   background-color: #dafbe1;
@@ -2885,13 +2890,15 @@ body {
   color: var(--preview-text-color);
 }
 
-[data-theme="dark"] .markdown-body .markdown-alert-note {
+[data-theme="dark"] .markdown-body .markdown-alert-note,
+[data-theme="dark"] .markdown-body .markdown-alert-discussion {
   color: #4493f8;
   background-color: rgba(31, 111, 235, 0.15);
   border-left-color: #4493f8;
 }
 
-[data-theme="dark"] .markdown-body .markdown-alert-tip {
+[data-theme="dark"] .markdown-body .markdown-alert-tip,
+[data-theme="dark"] .markdown-body .markdown-alert-activity {
   color: #3fb950;
   background-color: rgba(35, 134, 54, 0.15);
   border-left-color: #3fb950;
@@ -5151,22 +5158,30 @@ html:not([data-custom-syntax-theme]) .hljs-deletion {
 }
 
 .pdf-export[data-theme="light"] .markdown-alert-note,
-.pdf-export.theme-light .markdown-alert-note {
+.pdf-export.theme-light .markdown-alert-note,
+.pdf-export[data-theme="light"] .markdown-alert-discussion,
+.pdf-export.theme-light .markdown-alert-discussion {
   border-left-color: #0969da !important;
   background-color: #ddf4ff !important;
 }
 .pdf-export[data-theme="light"] .markdown-alert-note .markdown-alert-title,
-.pdf-export.theme-light .markdown-alert-note .markdown-alert-title {
+.pdf-export.theme-light .markdown-alert-note .markdown-alert-title,
+.pdf-export[data-theme="light"] .markdown-alert-discussion .markdown-alert-title,
+.pdf-export.theme-light .markdown-alert-discussion .markdown-alert-title {
   color: #0969da !important;
 }
 
 .pdf-export[data-theme="light"] .markdown-alert-tip,
-.pdf-export.theme-light .markdown-alert-tip {
+.pdf-export.theme-light .markdown-alert-tip,
+.pdf-export[data-theme="light"] .markdown-alert-activity,
+.pdf-export.theme-light .markdown-alert-activity {
   border-left-color: #1a7f37 !important;
   background-color: #dafbe1 !important;
 }
 .pdf-export[data-theme="light"] .markdown-alert-tip .markdown-alert-title,
-.pdf-export.theme-light .markdown-alert-tip .markdown-alert-title {
+.pdf-export.theme-light .markdown-alert-tip .markdown-alert-title,
+.pdf-export[data-theme="light"] .markdown-alert-activity .markdown-alert-title,
+.pdf-export.theme-light .markdown-alert-activity .markdown-alert-title {
   color: #1a7f37 !important;
 }
 
@@ -5230,22 +5245,30 @@ html:not([data-custom-syntax-theme]) .hljs-deletion {
 }
 
 .pdf-export[data-theme="dark"] .markdown-alert-note,
-.pdf-export.theme-dark .markdown-alert-note {
+.pdf-export.theme-dark .markdown-alert-note,
+.pdf-export[data-theme="dark"] .markdown-alert-discussion,
+.pdf-export.theme-dark .markdown-alert-discussion {
   border-left-color: #4493f8 !important;
   background-color: rgba(31, 111, 235, 0.15) !important;
 }
 .pdf-export[data-theme="dark"] .markdown-alert-note .markdown-alert-title,
-.pdf-export.theme-dark .markdown-alert-note .markdown-alert-title {
+.pdf-export.theme-dark .markdown-alert-note .markdown-alert-title,
+.pdf-export[data-theme="dark"] .markdown-alert-discussion .markdown-alert-title,
+.pdf-export.theme-dark .markdown-alert-discussion .markdown-alert-title {
   color: #4493f8 !important;
 }
 
 .pdf-export[data-theme="dark"] .markdown-alert-tip,
-.pdf-export.theme-dark .markdown-alert-tip {
+.pdf-export.theme-dark .markdown-alert-tip,
+.pdf-export[data-theme="dark"] .markdown-alert-activity,
+.pdf-export.theme-dark .markdown-alert-activity {
   border-left-color: #3fb950 !important;
   background-color: rgba(35, 134, 54, 0.15) !important;
 }
 .pdf-export[data-theme="dark"] .markdown-alert-tip .markdown-alert-title,
-.pdf-export.theme-dark .markdown-alert-tip .markdown-alert-title {
+.pdf-export.theme-dark .markdown-alert-tip .markdown-alert-title,
+.pdf-export[data-theme="dark"] .markdown-alert-activity .markdown-alert-title,
+.pdf-export.theme-dark .markdown-alert-activity .markdown-alert-title {
   color: #3fb950 !important;
 }
 
@@ -7032,14 +7055,18 @@ html:not([data-custom-syntax-theme]) .hljs-deletion {
 }
 
 .markdown-alert-note,
-.alert-preview .markdown-alert-note {
+.alert-preview .markdown-alert-note,
+.markdown-alert-discussion,
+.alert-preview .markdown-alert-discussion {
   color: #0969da;
   border-left-color: #0969da;
   background-color: #ddf4ff;
 }
 
 .markdown-alert-tip,
-.alert-preview .markdown-alert-tip {
+.alert-preview .markdown-alert-tip,
+.markdown-alert-activity,
+.alert-preview .markdown-alert-activity {
   color: #1a7f37;
   border-left-color: #1a7f37;
   background-color: #dafbe1;
@@ -7077,14 +7104,18 @@ html:not([data-custom-syntax-theme]) .hljs-deletion {
 }
 
 [data-theme="dark"] .markdown-alert-note,
-[data-theme="dark"] .alert-preview .markdown-alert-note {
+[data-theme="dark"] .alert-preview .markdown-alert-note,
+[data-theme="dark"] .markdown-alert-discussion,
+[data-theme="dark"] .alert-preview .markdown-alert-discussion {
   color: #4493f8;
   border-left-color: #4493f8;
   background-color: rgba(31, 111, 235, 0.15);
 }
 
 [data-theme="dark"] .markdown-alert-tip,
-[data-theme="dark"] .alert-preview .markdown-alert-tip {
+[data-theme="dark"] .alert-preview .markdown-alert-tip,
+[data-theme="dark"] .markdown-alert-activity,
+[data-theme="dark"] .alert-preview .markdown-alert-activity {
   color: #3fb950;
   border-left-color: #3fb950;
   background-color: rgba(35, 134, 54, 0.15);
@@ -13731,19 +13762,23 @@ html[data-theme="dark"] .mobile-settings-toggle.is-active .settings-switch {
     color: #c9d1d9 !important;
   }
 
-  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-note {
+  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-note,
+  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-discussion {
     border-left-color: #4493f8 !important;
     background-color: rgba(31, 111, 235, 0.15) !important;
   }
-  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-note .markdown-alert-title {
+  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-note .markdown-alert-title,
+  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-discussion .markdown-alert-title {
     color: #4493f8 !important;
   }
 
-  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-tip {
+  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-tip,
+  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-activity {
     border-left-color: #3fb950 !important;
     background-color: rgba(35, 134, 54, 0.15) !important;
   }
-  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-tip .markdown-alert-title {
+  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-tip .markdown-alert-title,
+  html[data-browser-print-export="dark"] .markdown-body .markdown-alert-activity .markdown-alert-title {
     color: #3fb950 !important;
   }
 
@@ -13844,13 +13879,15 @@ html[data-theme="dark"] .mobile-settings-toggle.is-active .settings-switch {
     color: var(--color-fg-default) !important;
   }
 
-  html:not([data-browser-print-export="dark"]) .markdown-body .markdown-alert-note {
+  html:not([data-browser-print-export="dark"]) .markdown-body .markdown-alert-note,
+  html:not([data-browser-print-export="dark"]) .markdown-body .markdown-alert-discussion {
     color: #0969da !important;
     border-left-color: #0969da !important;
     background-color: #ddf4ff !important;
   }
 
-  html:not([data-browser-print-export="dark"]) .markdown-body .markdown-alert-tip {
+  html:not([data-browser-print-export="dark"]) .markdown-body .markdown-alert-tip,
+  html:not([data-browser-print-export="dark"]) .markdown-body .markdown-alert-activity {
     color: #1a7f37 !important;
     border-left-color: #1a7f37 !important;
     background-color: #dafbe1 !important;

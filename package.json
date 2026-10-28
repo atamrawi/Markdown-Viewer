@@ -8,7 +8,9 @@
   },
   "scripts": {
     "start": "node tests/helpers/static-server.mjs",
+    "start:linked": "node scripts/serve-linked.mjs",
     "dev": "node tests/helpers/static-server.mjs",
+    "dev:linked": "node scripts/serve-linked.mjs",
     "build": "npm run build:toc && npm run check:static && npm run check:seo",
     "build:toc": "node scripts/build-document-toc.mjs",
     "check:static": "node tests/helpers/static-build-check.mjs",

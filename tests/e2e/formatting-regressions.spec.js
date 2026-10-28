@@ -404,3 +404,43 @@ test('scopes legacy MathJax color syntax without changing standard switches or s
     note: undefined
   });
 });
+
+test('renders DISCUSSION and ACTIVITY blockquotes with custom emoji icons and matching alert styles', async ({ page }) => {
+  await setEditorContent(page, [
+    '> [!DISCUSSION]',
+    '> This is a discussion topic.',
+    '',
+    '> [!ACTIVITY]',
+    '> This is a hands-on activity.',
+    '',
+    '> [!NOTE]',
+    '> Standard note.',
+    '',
+    '> [!TIP]',
+    '> Standard tip.'
+  ].join('\n'));
+
+  const discussionAlert = page.locator('#markdown-preview .markdown-alert-discussion');
+  await expect(discussionAlert).toBeVisible();
+  await expect(discussionAlert.locator('.markdown-alert-title .markdown-alert-icon')).toHaveText('💬');
+  await expect(discussionAlert.locator('.markdown-alert-title')).toContainText('Discussion');
+  await expect(discussionAlert).toContainText('This is a discussion topic.');
+
+  const activityAlert = page.locator('#markdown-preview .markdown-alert-activity');
+  await expect(activityAlert).toBeVisible();
+  await expect(activityAlert.locator('.markdown-alert-title .markdown-alert-icon')).toHaveText('🛠️');
+  await expect(activityAlert.locator('.markdown-alert-title')).toContainText('Activity');
+  await expect(activityAlert).toContainText('This is a hands-on activity.');
+
+  // Verify computed styles match Note and Tip styles
+  const noteAlert = page.locator('#markdown-preview .markdown-alert-note');
+  const tipAlert = page.locator('#markdown-preview .markdown-alert-tip');
+
+  const discussionBorder = await discussionAlert.evaluate(el => getComputedStyle(el).borderLeftColor);
+  const noteBorder = await noteAlert.evaluate(el => getComputedStyle(el).borderLeftColor);
+  expect(discussionBorder).toBe(noteBorder);
+
+  const activityBorder = await activityAlert.evaluate(el => getComputedStyle(el).borderLeftColor);
+  const tipBorder = await tipAlert.evaluate(el => getComputedStyle(el).borderLeftColor);
+  expect(activityBorder).toBe(tipBorder);
+});

@@ -181,7 +181,7 @@ Supported Markdown behavior includes:
 - Superscript with `^text^`.
 - Subscript with `~text~`.
 - Highlight with `==text==`.
-- GitHub-style alert blocks for NOTE, TIP, IMPORTANT, WARNING, and CAUTION.
+- GitHub-style alert blocks for NOTE, TIP, IMPORTANT, WARNING, CAUTION, DISCUSSION, and ACTIVITY.
 - Emoji shortcodes processed through JoyPixels when the emoji library is available.
 - Raw HTML is allowed only after sanitization. Scripts and unsafe event handlers are removed.
 
