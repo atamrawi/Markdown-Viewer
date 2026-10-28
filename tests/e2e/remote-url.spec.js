@@ -409,6 +409,8 @@ test.describe('Remote URL and Parameter Viewer', () => {
     const fontIncBtn = page.locator('#standalone-font-increase');
     const widthBtn = page.locator('#standalone-width-toggle');
     const resetBtn = page.locator('#standalone-reset');
+    const visualSettingsBtn = page.locator('#standalone-visual-settings');
+    const visualSettingsModal = page.locator('#visual-settings-modal');
     const themeToggle = page.locator('#standalone-theme-toggle');
     const slideNav = page.locator('#standalone-slide-nav');
     const slideStatItem = page.locator('#slide-stat-item');
@@ -420,6 +422,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(controlsToggleIcon).toHaveClass(/lucide-settings/);
     await expect(controlsToggle).toHaveAttribute('aria-expanded', 'false');
     await expect(slideToggle).toBeHidden();
+    await expect(visualSettingsBtn).toBeHidden();
     await expect(themeToggle).toBeHidden();
     expect(await controlsItems.evaluate(el => el.inert)).toBe(true);
     await expect(slideStatItem).toBeHidden();
@@ -429,6 +432,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(page.locator('html')).toHaveAttribute('data-standalone-controls-collapsed', 'false');
     await expect(controlsToggle).toHaveAttribute('aria-expanded', 'true');
     await expect(slideToggle).toBeVisible();
+    await expect(visualSettingsBtn).toBeVisible();
     await expect(themeToggle).toBeVisible();
     expect(await controlsItems.evaluate(el => el.inert)).toBe(false);
 
@@ -440,6 +444,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
       fontIncBtn.boundingBox(),
       widthBtn.boundingBox(),
       resetBtn.boundingBox(),
+      visualSettingsBtn.boundingBox(),
       themeToggle.boundingBox()
     ]);
     for (let i = 1; i < rects.length; i += 1) {
@@ -487,6 +492,22 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(slideNav).toBeVisible();
     await expect(slideNav).toBeHidden({ timeout: 3000 });
     await expect(slideStatItem).toBeVisible();
+
+    // Clicking Preview Styling opens the customization modal, applies changes, and closes via Escape without exiting Slide Mode
+    await controlsToggle.hover();
+    await expect(visualSettingsBtn).toBeVisible();
+    await visualSettingsBtn.click();
+    await expect(visualSettingsModal).toBeVisible();
+    await expect(visualSettingsModal).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.locator('#visual-setting-hljs-theme')).toBeFocused();
+    await page.locator('#visual-setting-hljs-theme').selectOption('dracula');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mdv.visualSettings.v1') || '{}').hljsTheme)).toBe('dracula');
+    await expect(page.locator('html')).toHaveAttribute('data-hljs-theme', 'dracula');
+    await expect(page.locator('#mdv-hljs-theme-link')).toHaveAttribute('href', /dracula\.min\.css/);
+    await page.keyboard.press('Escape');
+    await expect(visualSettingsModal).toBeHidden();
+    await expect(page.locator('html')).toHaveAttribute('data-slide-mode', 'true');
+    await expect(controlsToggle).toBeFocused();
 
     // Exiting slide mode hides the slide stat item from the status bar
     await page.keyboard.press('Escape');

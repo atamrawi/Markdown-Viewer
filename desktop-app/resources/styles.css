@@ -14800,6 +14800,10 @@ html[data-standalone-readonly="true"][data-standalone-controls-collapsed="false"
   transform: rotate(-60deg);
 }
 
+#standalone-visual-settings:hover i {
+  transform: rotate(-12deg) scale(1.1);
+}
+
 body.standalone-file-mode .standalone-theme-toggle,
 html[data-standalone-mode="true"] .standalone-theme-toggle {
   display: flex !important;
@@ -15146,6 +15150,10 @@ html[data-slide-mode="true"] #markdown-preview[data-slide-kind="h2"] > h2:first-
 /* ==========================================================================
    Preview appearance
    ========================================================================== */
+
+#visual-settings-modal {
+  z-index: 10050;
+}
 
 .visual-settings-box {
   width: min(500px, calc(100vw - 32px));

@@ -531,6 +531,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const standaloneControlsToggleBtn = document.getElementById("standalone-controls-toggle");
   const standaloneControlsToggleIcon = document.getElementById("standalone-controls-toggle-icon");
   const standaloneSlideToggleBtn = document.getElementById("standalone-slide-toggle");
+  const standaloneVisualSettingsBtn = document.getElementById("standalone-visual-settings");
   const standaloneSlideNav = document.getElementById("standalone-slide-nav");
   const standaloneSlidePrevBtn = document.getElementById("standalone-slide-prev");
   const standaloneSlideNextBtn = document.getElementById("standalone-slide-next");
@@ -25851,6 +25852,17 @@ ${selector} .arrowheadPath {
     }
   }
 
+  if (standaloneVisualSettingsBtn) {
+    standaloneVisualSettingsBtn.addEventListener('click', function() {
+      clearStandaloneControlsCollapseTimer();
+      const readOnly = isStandaloneReadOnlyMode();
+      if (readOnly) {
+        setStandaloneControlsCollapsed(true);
+      }
+      openVisualSettingsModal(readOnly && standaloneControlsToggleBtn ? standaloneControlsToggleBtn : standaloneVisualSettingsBtn);
+    });
+  }
+
   if (standaloneSlideToggleBtn) {
     standaloneSlideToggleBtn.addEventListener('click', function() {
       toggleStandaloneSlideMode();
@@ -25870,7 +25882,7 @@ ${selector} .arrowheadPath {
   }
 
   document.addEventListener('pointerdown', function(event) {
-    if (!standaloneSlideModeActive || !isStandaloneReadOnlyMode()) return;
+    if (!standaloneSlideModeActive || !isStandaloneReadOnlyMode() || activeModal) return;
     if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
       lastSlideNavPointerX = event.clientX;
       lastSlideNavPointerY = event.clientY;
@@ -25883,7 +25895,7 @@ ${selector} .arrowheadPath {
   });
 
   document.addEventListener('pointermove', function(event) {
-    if (!standaloneSlideModeActive || !isStandaloneReadOnlyMode()) return;
+    if (!standaloneSlideModeActive || !isStandaloneReadOnlyMode() || activeModal) return;
     if (event.pointerType === 'touch') return;
     if (typeof event.clientX !== 'number' || typeof event.clientY !== 'number') return;
     if (standaloneSlideNavAutoHidden) {
@@ -25905,7 +25917,7 @@ ${selector} .arrowheadPath {
   });
 
   document.addEventListener('keydown', function(event) {
-    if (!standaloneSlideModeActive || !isStandaloneReadOnlyMode()) return;
+    if (!standaloneSlideModeActive || !isStandaloneReadOnlyMode() || activeModal) return;
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
     const zoomModal = document.getElementById('mermaid-zoom-modal');
     if (zoomModal && zoomModal.classList.contains('active')) return;
