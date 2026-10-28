@@ -25674,15 +25674,18 @@ ${selector} .arrowheadPath {
   const standaloneFontDecBtn = document.getElementById("standalone-font-decrease");
   const standaloneFontIncBtn = document.getElementById("standalone-font-increase");
 
+  const MIN_READER_FONT_SIZE = 12;
+  const MAX_READER_FONT_SIZE = 72;
+
   function getReaderFontSize() {
     const raw = document.documentElement.style.getPropertyValue('--markdown-font-size') || 
                 localStorage.getItem('markdownViewerFontSize') || '16px';
     const parsed = parseInt(raw, 10);
-    return isNaN(parsed) ? 16 : Math.max(12, Math.min(28, parsed));
+    return isNaN(parsed) ? 16 : Math.max(MIN_READER_FONT_SIZE, Math.min(MAX_READER_FONT_SIZE, parsed));
   }
 
   function setReaderFontSize(size) {
-    const clamped = Math.max(12, Math.min(28, size));
+    const clamped = Math.max(MIN_READER_FONT_SIZE, Math.min(MAX_READER_FONT_SIZE, size));
     document.documentElement.style.setProperty('--markdown-font-size', clamped + 'px');
     document.documentElement.dataset.markdownFontSize = String(clamped);
     try {
@@ -25691,14 +25694,14 @@ ${selector} .arrowheadPath {
     if (standaloneFontDecBtn) {
       standaloneFontDecBtn.title = `Decrease font size (Current: ${clamped}px)`;
       standaloneFontDecBtn.setAttribute('aria-label', `Decrease font size, current ${clamped} pixels`);
-      standaloneFontDecBtn.disabled = clamped <= 12;
-      standaloneFontDecBtn.classList.toggle('is-disabled', clamped <= 12);
+      standaloneFontDecBtn.disabled = clamped <= MIN_READER_FONT_SIZE;
+      standaloneFontDecBtn.classList.toggle('is-disabled', clamped <= MIN_READER_FONT_SIZE);
     }
     if (standaloneFontIncBtn) {
       standaloneFontIncBtn.title = `Increase font size (Current: ${clamped}px)`;
       standaloneFontIncBtn.setAttribute('aria-label', `Increase font size, current ${clamped} pixels`);
-      standaloneFontIncBtn.disabled = clamped >= 28;
-      standaloneFontIncBtn.classList.toggle('is-disabled', clamped >= 28);
+      standaloneFontIncBtn.disabled = clamped >= MAX_READER_FONT_SIZE;
+      standaloneFontIncBtn.classList.toggle('is-disabled', clamped >= MAX_READER_FONT_SIZE);
     }
   }
 

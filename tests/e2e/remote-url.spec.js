@@ -79,6 +79,17 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await resetBtn.click();
     await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '16');
     await expect(page.locator('html')).toHaveAttribute('data-standalone-width', 'normal');
+
+    // Verify font size can increase past 28px all the way up to the 72px cap
+    await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/guide.md&readonly=1&fontSize=70');
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+    await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '70');
+    await expect(fontIncBtn).toBeEnabled();
+    await fontIncBtn.click();
+    await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '72');
+    await expect(fontIncBtn).toBeDisabled();
+    await resetBtn.click();
+    await expect(page.locator('html')).toHaveAttribute('data-markdown-font-size', '16');
   });
 
   test('loads remote Markdown with light theme and standalone reader mode', async ({ page }) => {
