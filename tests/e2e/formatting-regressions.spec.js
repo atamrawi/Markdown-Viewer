@@ -423,14 +423,23 @@ test('renders DISCUSSION and ACTIVITY blockquotes with custom emoji icons and ma
   const discussionAlert = page.locator('#markdown-preview .markdown-alert-discussion');
   await expect(discussionAlert).toBeVisible();
   await expect(discussionAlert.locator('.markdown-alert-title .markdown-alert-icon')).toHaveText('💬');
-  await expect(discussionAlert.locator('.markdown-alert-title')).toContainText('Discussion');
+  await expect(discussionAlert.locator('.markdown-alert-title span').nth(1)).toHaveText('\u00A0Discussion');
   await expect(discussionAlert).toContainText('This is a discussion topic.');
 
   const activityAlert = page.locator('#markdown-preview .markdown-alert-activity');
   await expect(activityAlert).toBeVisible();
   await expect(activityAlert.locator('.markdown-alert-title .markdown-alert-icon')).toHaveText('🛠️');
-  await expect(activityAlert.locator('.markdown-alert-title')).toContainText('Activity');
+  await expect(activityAlert.locator('.markdown-alert-title span').nth(1)).toHaveText('\u00A0Activity');
   await expect(activityAlert).toContainText('This is a hands-on activity.');
+
+  for (const alert of [discussionAlert, activityAlert]) {
+    const boxes = await alert.locator('.markdown-alert-title').evaluate(title => {
+      const icon = title.querySelector('.markdown-alert-icon').getBoundingClientRect();
+      const label = title.querySelectorAll('span')[1].getBoundingClientRect();
+      return { iconRight: icon.right, labelLeft: label.left };
+    });
+    expect(boxes.labelLeft).toBeGreaterThan(boxes.iconRight);
+  }
 
   // Verify computed styles match Note and Tip styles
   const noteAlert = page.locator('#markdown-preview .markdown-alert-note');

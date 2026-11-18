@@ -3466,11 +3466,11 @@ document.addEventListener("DOMContentLoaded", async function () {
       path: "M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM175 175c9.4-9.4 24.6-9.4 33.9 0l47 47 47-47c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-47 47 47 47c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-47-47-47 47c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l47-47-47-47c-9.4-9.4-9.4-24.6 0-33.9z",
     },
     discussion: {
-      label: "Discussion",
-      emoji: "💬 ",
+      label: "\u00A0Discussion",
+      emoji: "💬",
     },
     activity: {
-      label: "Activity",
+      label: "\u00A0Activity",
       emoji: "🛠️",
     },
   };
@@ -26688,8 +26688,13 @@ ${selector} .arrowheadPath {
       }
       .markdown-alert-icon {
           display: inline-flex;
-          width: 16px;
-          height: 16px;
+          align-items: center;
+          justify-content: center;
+          min-width: 16px;
+          min-height: 16px;
+          width: auto;
+          height: auto;
+          flex-shrink: 0;
       }
       .markdown-alert-icon svg {
           width: 16px;
