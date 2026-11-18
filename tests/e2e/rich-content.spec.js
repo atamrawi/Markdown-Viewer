@@ -254,7 +254,7 @@ test('renders hover toolbar on images and opens zoom modal', async ({ page }) =>
   await expect(copyBtn).toBeAttached();
 
   const downloadBtn = toolbar.locator('button[title*="Download image"]');
-  await expect(downloadBtn).toBeAttached();
+  await expect(downloadBtn).toHaveCount(0);
 
   // Test hovering and expanding image opens modal
   await imgContainer.hover();
@@ -262,6 +262,8 @@ test('renders hover toolbar on images and opens zoom modal', async ({ page }) =>
   const modal = page.locator('#mermaid-zoom-modal');
   await expect(modal).toHaveClass(/active/);
   await expect(page.locator('#diagram-viewer-modal-title')).toContainText('Sample Image');
+  await expect(page.locator('#mermaid-modal-download-png')).toBeHidden();
+  await expect(page.locator('#mermaid-modal-download-svg')).toBeHidden();
 
   // Close modal
   await page.locator('#mermaid-modal-close').click();

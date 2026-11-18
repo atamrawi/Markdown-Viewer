@@ -3614,12 +3614,6 @@ document.addEventListener("DOMContentLoaded", async function () {
           onClick: btn => copyImageToClipboard(img, btn)
         },
         {
-          title: "Download image",
-          ariaLabel: "Download image file",
-          html: '<i class="lucide lucide-download"></i> Download',
-          onClick: btn => downloadImageFile(img, btn)
-        },
-        {
           title: "Open original image in new tab",
           ariaLabel: "Open original image in new tab",
           html: '<i class="lucide lucide-external-link"></i>',
@@ -32180,6 +32174,15 @@ ${selector} .arrowheadPath {
     }
   }
 
+  function setModalExportControlsVisible(visible) {
+    ['mermaid-modal-download-png', 'mermaid-modal-download-svg'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.hidden = !visible;
+      btn.style.display = visible ? '' : 'none';
+    });
+  }
+
   function closeMermaidModal() {
     if (!mermaidZoomModal.classList.contains('active')) return;
     mermaidZoomModal.classList.remove('active');
@@ -32191,6 +32194,7 @@ ${selector} .arrowheadPath {
     modalZoomScale = 1;
     modalPanX = 0;
     modalPanY = 0;
+    setModalExportControlsVisible(true);
   }
 
   function getDiagramBackdropColor(element) {
@@ -32245,6 +32249,7 @@ ${selector} .arrowheadPath {
     const engine = container.getAttribute('data-diagram-engine') || 'diagram';
     const title = document.getElementById('diagram-viewer-modal-title') || document.getElementById('diagram-modal-title');
     if (title) title.textContent = `${getDiagramEngineLabel(engine)} Viewer`;
+    setModalExportControlsVisible(true);
     mermaidZoomModal.classList.add('active');
     mermaidZoomModal.setAttribute('aria-hidden', 'false');
     requestAnimationFrame(fitModalDiagram);
@@ -32291,6 +32296,7 @@ ${selector} .arrowheadPath {
     const title = document.getElementById("diagram-viewer-modal-title") || document.getElementById("diagram-modal-title");
     if (title) title.textContent = imgEl.alt ? `Image Viewer — ${imgEl.alt}` : "Image Viewer";
 
+    setModalExportControlsVisible(false);
     mermaidZoomModal.classList.add("active");
     mermaidZoomModal.setAttribute("aria-hidden", "false");
     requestAnimationFrame(fitModalDiagram);
@@ -32335,27 +32341,6 @@ ${selector} .arrowheadPath {
         setTimeout(() => { button.innerHTML = originalHtml; }, 2000);
       }
     }
-  }
-
-  function downloadImageFile(imgEl, button) {
-    const src = imgEl.src;
-    let fileName = "image.png";
-    try {
-      const parsed = new URL(src, window.location.href);
-      const segs = parsed.pathname.split("/").filter(Boolean);
-      if (segs.length) {
-        fileName = decodeURIComponent(segs[segs.length - 1]) || "image.png";
-      }
-    } catch (_) {}
-
-    const a = document.createElement("a");
-    a.href = src;
-    a.download = fileName;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
   }
 
   // Modal close button
@@ -32448,14 +32433,16 @@ ${selector} .arrowheadPath {
 
   document.getElementById('mermaid-modal-copy').addEventListener('click', async function() {
     if (!modalCurrentSvgEl) return;
+    if (modalCurrentSvgEl.tagName.toLowerCase() === 'img') {
+      await copyImageToClipboard(modalCurrentSvgEl, this);
+      return;
+    }
     const btn = this;
     const original = btn.innerHTML;
     btn.innerHTML = '<i class="lucide lucide-hourglass"></i>';
     try {
-      if (modalCurrentSvgEl.tagName.toLowerCase() === 'img') {
-        const pngUrl = modalCurrentSvgEl.src.replace('/svg/', '/png/');
-        const res = await fetch(pngUrl);
-        const blob = await res.blob();
+      const canvas = await svgToCanvas(modalCurrentSvgEl);
+      canvas.toBlob(async blob => {
         try {
           await navigator.clipboard.write([
             new ClipboardItem({ 'image/png': blob })
@@ -32466,21 +32453,7 @@ ${selector} .arrowheadPath {
           btn.innerHTML = '<i class="lucide lucide-x"></i>';
         }
         setTimeout(() => { btn.innerHTML = original; }, 1800);
-      } else {
-        const canvas = await svgToCanvas(modalCurrentSvgEl);
-        canvas.toBlob(async blob => {
-          try {
-            await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob })
-            ]);
-            btn.innerHTML = '<i class="lucide lucide-check"></i> Copied!';
-          } catch (clipErr) {
-            console.error('Clipboard write failed:', clipErr);
-            btn.innerHTML = '<i class="lucide lucide-x"></i>';
-          }
-          setTimeout(() => { btn.innerHTML = original; }, 1800);
-        }, 'image/png');
-      }
+      }, 'image/png');
     } catch (e) {
       console.error('Modal copy failed:', e);
       btn.innerHTML = original;
