@@ -86,6 +86,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   let remoteUrlLoaded = false;
   let remoteUrlLoadFailed = false;
+  let standaloneDocumentTitle = '';
+  function getStandaloneWindowTitle(rawTitle) {
+    const trimmed = String(rawTitle || '').trim().replace(/\.(md|markdown)$/i, '').trim();
+    return trimmed || String(rawTitle || '').trim() || 'Remote Document';
+  }
   window.alert = function(message) { showAppToast(message); };
   const PRIVATE_MODE_KEY = 'markdownViewerPrivateMode';
   const APP_VERSION = '3.10.4';
@@ -31408,8 +31413,12 @@ ${selector} .arrowheadPath {
 
     try {
       const resolved = resolveMarkdownUrlInfo(fileUrl);
+      standaloneDocumentTitle = getStandaloneWindowTitle(resolved.title);
+      document.title = standaloneDocumentTitle;
       const markdownContent = await fetchRemoteMarkdownText(resolved);
       const docTitle = resolved.title || 'Remote Document';
+      standaloneDocumentTitle = getStandaloneWindowTitle(docTitle);
+      document.title = standaloneDocumentTitle;
 
       const tabMode = requestedMode === 'editor' ? 'editor' : requestedMode === 'split' ? 'split' : 'preview';
 
@@ -34055,6 +34064,9 @@ ${selector} .arrowheadPath {
     translateUiTree(document.body);
     if (window.MarkdownViewerSeo) window.MarkdownViewerSeo.applyForLanguage(lang);
     else document.title = activeLang === 'en' ? initialDocumentTitle : translateUiString(initialDocumentTitle);
+    if (standaloneDocumentTitle && hasRemoteUrlParameter()) {
+      document.title = standaloneDocumentTitle;
+    }
   }
 
   async function detectAndInitLanguage() {
@@ -34113,6 +34125,9 @@ ${selector} .arrowheadPath {
       else url.searchParams.set('lang', lang);
       window.history.replaceState({}, '', url.toString());
       window.MarkdownViewerSeo?.applyForLanguage(lang);
+      if (standaloneDocumentTitle && hasRemoteUrlParameter()) {
+        document.title = standaloneDocumentTitle;
+      }
     }
   });
 

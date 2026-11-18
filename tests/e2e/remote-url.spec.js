@@ -16,6 +16,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
 
     // Wait for the app to finish loading
     await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+    await expect(page).toHaveTitle('guide');
 
     // Verify dark theme applied
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -603,6 +604,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
 
     await page.goto(`/?url=${encodeURIComponent(workerUrl)}`);
     await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+    await expect(page).toHaveTitle('M00-Course-Overview');
 
     await page.evaluate(() => {
       window.__vectorPdfImages = null;
