@@ -3467,7 +3467,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     },
     discussion: {
       label: "Discussion",
-      emoji: "💬",
+      emoji: "💬 ",
     },
     activity: {
       label: "Activity",
