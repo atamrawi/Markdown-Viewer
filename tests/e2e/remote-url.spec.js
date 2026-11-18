@@ -336,6 +336,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(counter).toHaveText('1 / 4');
     await expect(prevBtn).toBeDisabled();
     await expect(nextBtn).toBeEnabled();
+    await expect(page).toHaveURL(/slide=1/);
 
     // Slide 1: Level # shows ONLY the section title name
     await expect(preview).toHaveAttribute('data-slide-kind', 'h1');
@@ -347,6 +348,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(counter).toHaveText('2 / 4');
     await expect(prevBtn).toBeEnabled();
     await expect(nextBtn).toBeEnabled();
+    await expect(page).toHaveURL(/slide=2/);
     await expect(preview).toHaveAttribute('data-slide-kind', 'h2');
     await expect(preview.locator('> h2')).toHaveText('System Overview');
     await expect(preview.locator('h3')).toHaveText('Core Components');
@@ -357,6 +359,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
     // Slide 3 via keyboard ArrowRight: second Level # shows ONLY title
     await page.keyboard.press('ArrowRight');
     await expect(counter).toHaveText('3 / 4');
+    await expect(page).toHaveURL(/slide=3/);
     await expect(preview).toHaveAttribute('data-slide-kind', 'h1');
     await expect(preview.locator('h1')).toHaveText('Closing Chapter');
     await expect(preview).not.toContainText('Hidden paragraph under second H1.');
@@ -365,17 +368,20 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await nextBtn.click();
     await expect(counter).toHaveText('4 / 4');
     await expect(nextBtn).toBeDisabled();
+    await expect(page).toHaveURL(/slide=4/);
     await expect(preview.locator('> h2')).toHaveText('Next Steps');
     await expect(preview.locator('a', { hasText: 'Reference Guide' })).toHaveAttribute('href', 'https://example.com/guide');
 
     // Navigate back with Previous button
     await prevBtn.click();
     await expect(counter).toHaveText('3 / 4');
+    await expect(page).toHaveURL(/slide=3/);
 
     // Exit Slide Mode via Escape and verify full document is restored
     await page.keyboard.press('Escape');
     await expect(page.locator('html')).not.toHaveAttribute('data-slide-mode', 'true');
     await expect(slideNav).toBeHidden();
+    await expect(page).not.toHaveURL(/slide=/);
     await expect(preview).toContainText('This intro under level 1 should be hidden in slide mode.');
     await expect(preview).toContainText('Next Steps');
 
@@ -386,6 +392,20 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(slideNav).toBeVisible();
     await expect(counter).toHaveText('1 / 4');
     await expect(preview.locator('h1')).toHaveText('Architecture Presentation');
+    await expect(page).toHaveURL(/slides=1/);
+
+    await nextBtn.click();
+    await expect(counter).toHaveText('2 / 4');
+    await expect(page).toHaveURL(/slides=2/);
+
+    // Verify loading directly with a specific slide number in URL opens that slide
+    await page.goto('/?url=https://github.com/test-org/test-repo/blob/main/docs/slides.md&slide=3');
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+    await expect(page.locator('html')).toHaveAttribute('data-slide-mode', 'true');
+    await expect(slideNav).toBeVisible();
+    await expect(counter).toHaveText('3 / 4');
+    await expect(preview.locator('h1')).toHaveText('Closing Chapter');
+    await expect(page).toHaveURL(/slide=3/);
   });
 
   test('starts collapsed as settings icon, expands vertically on hover, collapses on mouse out, and shows slide status in status bar', async ({ page }) => {

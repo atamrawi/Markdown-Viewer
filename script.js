@@ -54,11 +54,24 @@ document.addEventListener("DOMContentLoaded", async function () {
     return searchReadOnly !== '0' && searchReadOnly !== 'false' && hashReadOnly !== '0' && hashReadOnly !== 'false';
   }
 
-  function isStandaloneSlideUrlRequested() {
+  function getRequestedStandaloneSlideNumber() {
     const { searchParams, hashParams } = getRemoteUrlParams();
-    const slidesParam = (searchParams.get('slides') || searchParams.get('slide') || hashParams.get('slides') || hashParams.get('slide') || '').toLowerCase();
+    const slidesParam = searchParams.get('slides') ?? hashParams.get('slides');
+    const slideParam = searchParams.get('slide') ?? hashParams.get('slide');
+    const rawVal = slideParam !== null && slideParam !== undefined ? slideParam : slidesParam;
+    if (rawVal !== null && rawVal !== undefined && rawVal !== '') {
+      const lower = String(rawVal).toLowerCase();
+      if (lower === 'true' || lower === 'yes') return 1;
+      const num = parseInt(lower, 10);
+      if (!isNaN(num) && num > 0) return num;
+    }
     const modeParam = (searchParams.get('mode') || hashParams.get('mode') || '').toLowerCase();
-    return slidesParam === '1' || slidesParam === 'true' || slidesParam === 'yes' || modeParam === 'slides' || modeParam === 'slide';
+    if (modeParam === 'slides' || modeParam === 'slide') return 1;
+    return null;
+  }
+
+  function isStandaloneSlideUrlRequested() {
+    return getRequestedStandaloneSlideNumber() !== null;
   }
 
   function isStandaloneReadOnlyMode() {
@@ -15627,6 +15640,63 @@ ${selector} .arrowheadPath {
     savePreviewScrollSnapshot(getActivePreviewDocumentId(), { top: 0, left: 0 });
   }
 
+  function updateStandaloneSlideUrl(slideNumber) {
+    if (!isStandaloneReadOnlyMode()) return;
+    try {
+      const url = new URL(window.location.href);
+      const { hashParams } = getRemoteUrlParams();
+      const hasHashUrl = Boolean(
+        hashParams.get('url') || hashParams.get('file') || hashParams.get('src') || hashParams.get('md')
+      );
+
+      if (hasHashUrl && window.location.hash) {
+        const hash = window.location.hash;
+        const qIndex = hash.indexOf('?');
+        const prefix = qIndex !== -1 ? hash.slice(0, qIndex) : (hash.startsWith('#') ? hash.slice(0, 1) : '#');
+        const currentHashParams = new URLSearchParams(
+          qIndex !== -1 ? hash.slice(qIndex + 1) : hash.slice(1)
+        );
+        const key = currentHashParams.has('slides') ? 'slides' : 'slide';
+        if (typeof slideNumber === 'number' && slideNumber > 0) {
+          currentHashParams.set(key, String(slideNumber));
+          if (key === 'slides') currentHashParams.delete('slide');
+          else currentHashParams.delete('slides');
+        } else {
+          currentHashParams.delete('slide');
+          currentHashParams.delete('slides');
+          if (currentHashParams.get('mode') === 'slides' || currentHashParams.get('mode') === 'slide') {
+            currentHashParams.delete('mode');
+          }
+        }
+        const newHashString = currentHashParams.toString();
+        const nextHash = qIndex !== -1
+          ? (newHashString ? `${prefix}?${newHashString}` : prefix)
+          : (newHashString ? `#${newHashString}` : '');
+        if (window.location.hash !== nextHash) {
+          url.hash = nextHash;
+          window.history.replaceState(window.history.state, '', url.toString());
+        }
+      } else {
+        const key = url.searchParams.has('slides') ? 'slides' : 'slide';
+        if (typeof slideNumber === 'number' && slideNumber > 0) {
+          url.searchParams.set(key, String(slideNumber));
+          if (key === 'slides') url.searchParams.delete('slide');
+          else url.searchParams.delete('slides');
+        } else {
+          url.searchParams.delete('slide');
+          url.searchParams.delete('slides');
+          if (url.searchParams.get('mode') === 'slides' || url.searchParams.get('mode') === 'slide') {
+            url.searchParams.delete('mode');
+          }
+        }
+        const nextUrlString = url.toString();
+        if (window.location.href !== nextUrlString) {
+          window.history.replaceState(window.history.state, '', nextUrlString);
+        }
+      }
+    } catch (_) {}
+  }
+
   function enterStandaloneSlideMode(initialIndex) {
     if (!isStandaloneReadOnlyMode()) return false;
     if (markdownPreview && markdownPreview.dataset.renderState === 'error') return false;
@@ -15641,6 +15711,7 @@ ${selector} .arrowheadPath {
     document.documentElement.dataset.slideMode = 'true';
     renderActiveStandaloneSlide();
     revealStandaloneSlideNav();
+    updateStandaloneSlideUrl(standaloneSlideIndex + 1);
     return true;
   }
 
@@ -15658,6 +15729,7 @@ ${selector} .arrowheadPath {
       delete markdownPreview.dataset.slideIndex;
     }
     updateStandaloneSlideNavUI();
+    updateStandaloneSlideUrl(null);
     if (wasActive && !settings.skipRender) {
       _lastRenderedContent = null;
       renderMarkdown({ force: true, reason: 'exit-slide-mode', resetScrollTop: true });
@@ -15680,6 +15752,7 @@ ${selector} .arrowheadPath {
     standaloneSlideIndex = clamped;
     renderActiveStandaloneSlide();
     revealStandaloneSlideNav();
+    updateStandaloneSlideUrl(standaloneSlideIndex + 1);
     return true;
   }
 
@@ -31296,7 +31369,11 @@ ${selector} .arrowheadPath {
       remoteUrlLoaded = true;
       syncStandaloneSlideControlsVisibility();
       if (isReadOnly && isStandaloneSlideUrlRequested()) {
-        enterStandaloneSlideMode(0);
+        const requestedSlideNumber = getRequestedStandaloneSlideNumber();
+        const initialSlideIndex = typeof requestedSlideNumber === 'number' && requestedSlideNumber > 0
+          ? requestedSlideNumber - 1
+          : 0;
+        enterStandaloneSlideMode(initialSlideIndex);
       }
       return true;
     } catch (error) {

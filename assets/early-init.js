@@ -24,7 +24,8 @@
       }
       var slidesParam = (searchParams.get('slides') || searchParams.get('slide') || hashParams.get('slides') || hashParams.get('slide') || '').toLowerCase();
       var modeParam = (searchParams.get('mode') || hashParams.get('mode') || '').toLowerCase();
-      if (isReadOnly && (slidesParam === '1' || slidesParam === 'true' || slidesParam === 'yes' || modeParam === 'slides' || modeParam === 'slide')) {
+      var slideNum = parseInt(slidesParam, 10);
+      if (isReadOnly && ((!isNaN(slideNum) && slideNum > 0) || slidesParam === 'true' || slidesParam === 'yes' || modeParam === 'slides' || modeParam === 'slide')) {
         document.documentElement.dataset.slideMode = 'true';
       }
       var theme = searchParams.get('theme') || hashParams.get('theme');

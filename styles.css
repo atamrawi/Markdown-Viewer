@@ -14656,7 +14656,7 @@ html[data-standalone-mode="true"] #markdown-preview,
 body.standalone-file-mode #markdown-preview {
   max-width: 860px;
   margin: 0 auto;
-  padding: 3.5rem 2rem 6rem 2rem;
+  padding: 2rem 2rem 6rem 2rem;
   min-height: 100vh;
   transition: max-width 0.25s cubic-bezier(0.16, 1, 0.3, 1), padding 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -14676,7 +14676,7 @@ body[data-standalone-width="full"] #markdown-preview {
 @media (max-width: 768px) {
   html[data-standalone-mode="true"] #markdown-preview,
   body.standalone-file-mode #markdown-preview {
-    padding: 2rem 1.25rem 5rem 1.25rem;
+    padding: 1.25rem 1.25rem 5rem 1.25rem;
   }
 
   html[data-standalone-width="full"] #markdown-preview,
@@ -15101,7 +15101,7 @@ html[data-slide-mode="true"] .standalone-slide-nav:not([hidden]) {
 
 html[data-slide-mode="true"] #markdown-preview {
   max-width: 960px;
-  padding: 4.5rem 2.5rem 6.5rem 2.5rem;
+  padding: 2.5rem 2.5rem 6.5rem 2.5rem;
   min-height: 100%;
 }
 
@@ -15111,7 +15111,7 @@ html[data-slide-mode="true"] #markdown-preview[data-slide-kind="h1"] {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding-top: 5rem;
+  padding-top: 2.5rem;
   padding-bottom: 6.5rem;
 }
 
@@ -15229,7 +15229,7 @@ html[data-slide-mode="true"] #markdown-preview[data-slide-kind="h2"] > h2:first-
   }
 
   html[data-slide-mode="true"] #markdown-preview {
-    padding: 4.25rem 1.25rem 5.75rem 1.25rem;
+    padding: 1.25rem 1.25rem 5.75rem 1.25rem;
   }
 }
 

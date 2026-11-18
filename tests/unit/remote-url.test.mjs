@@ -124,3 +124,37 @@ test('rejects non-HTTP protocols', () => {
   assert.throws(() => resolveMarkdownUrlInfo('javascript:alert(1)'), /Only HTTP\/HTTPS URLs are supported/);
   assert.throws(() => resolveMarkdownUrlInfo('file:///etc/passwd'), /Only HTTP\/HTTPS URLs are supported/);
 });
+
+function parseRequestedSlideNumber(searchString, hashString = '') {
+  const searchParams = new URLSearchParams(searchString.startsWith('?') ? searchString.slice(1) : searchString);
+  let hashParams = new URLSearchParams();
+  if (hashString.includes('?')) {
+    hashParams = new URLSearchParams(hashString.slice(hashString.indexOf('?') + 1));
+  } else if (hashString.startsWith('#url=') || hashString.startsWith('#file=') || hashString.startsWith('#src=') || hashString.startsWith('#md=')) {
+    hashParams = new URLSearchParams(hashString.slice(1));
+  }
+  const slidesParam = searchParams.get('slides') ?? hashParams.get('slides');
+  const slideParam = searchParams.get('slide') ?? hashParams.get('slide');
+  const rawVal = slideParam !== null && slideParam !== undefined ? slideParam : slidesParam;
+  if (rawVal !== null && rawVal !== undefined && rawVal !== '') {
+    const lower = String(rawVal).toLowerCase();
+    if (lower === 'true' || lower === 'yes') return 1;
+    const num = parseInt(lower, 10);
+    if (!isNaN(num) && num > 0) return num;
+  }
+  const modeParam = (searchParams.get('mode') || hashParams.get('mode') || '').toLowerCase();
+  if (modeParam === 'slides' || modeParam === 'slide') return 1;
+  return null;
+}
+
+test('parses requested slide numbers from query and hash parameters', () => {
+  assert.equal(parseRequestedSlideNumber('?url=https://example.com/test.md&slides=1'), 1);
+  assert.equal(parseRequestedSlideNumber('?url=https://example.com/test.md&slide=3'), 3);
+  assert.equal(parseRequestedSlideNumber('?url=https://example.com/test.md&slides=4'), 4);
+  assert.equal(parseRequestedSlideNumber('?url=https://example.com/test.md&slides=true'), 1);
+  assert.equal(parseRequestedSlideNumber('?url=https://example.com/test.md&mode=slides'), 1);
+  assert.equal(parseRequestedSlideNumber('', '#url=https://example.com/test.md&slide=2'), 2);
+  assert.equal(parseRequestedSlideNumber('?url=https://example.com/test.md&slides=invalid'), null);
+  assert.equal(parseRequestedSlideNumber('?url=https://example.com/test.md&slide=0'), null);
+  assert.equal(parseRequestedSlideNumber('?url=https://example.com/test.md'), null);
+});
