@@ -574,5 +574,108 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await page.keyboard.press('Escape');
     await expect(slideStatItem).toBeHidden();
   });
+
+  test('resolves and loads relative remote images in both Vector and Raster PDF exports', async ({ page }) => {
+    const workerUrl = 'https://se-4240x.ahmedtamrawi.workers.dev/lectures/M00-Course-Overview.md';
+    const imageUrl = 'https://se-4240x.ahmedtamrawi.workers.dev/lectures/assets/overview.png';
+    const onePxPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64'
+    );
+
+    await page.route(workerUrl, async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/markdown; charset=utf-8',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: '# SE-4240X Course Overview\n\n![Course Diagram](assets/overview.png)\n'
+      });
+    });
+
+    await page.route(imageUrl, async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: onePxPng
+      });
+    });
+
+    await page.goto(`/?url=${encodeURIComponent(workerUrl)}`);
+    await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+
+    await page.evaluate(() => {
+      window.__vectorPdfImages = null;
+      window.__rasterPdfImages = null;
+      window.__savedPdfFiles = [];
+      window.print = () => {
+        const root = document.querySelector('.browser-print-export-snapshot');
+        window.__vectorPdfImages = Array.from(root ? root.querySelectorAll('img') : []).map(img => ({
+          src: img.getAttribute('src'),
+          resolvedSrc: img.src,
+          complete: img.complete,
+          naturalWidth: img.naturalWidth
+        }));
+        window.dispatchEvent(new Event('afterprint'));
+      };
+      window.html2canvas = async root => {
+        window.__rasterPdfImages = Array.from(root.querySelectorAll('img')).map(img => ({
+          src: img.getAttribute('src'),
+          originalSrc: img.dataset.exportOriginalSrc || '',
+          complete: img.complete,
+          naturalWidth: img.naturalWidth
+        }));
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 300;
+        return canvas;
+      };
+      window.jspdf = {
+        jsPDF: class {
+          constructor() {
+            this.internal = { pageSize: { getWidth() { return 210; }, getHeight() { return 297; } } };
+          }
+          addPage() {}
+          setFillColor() {}
+          rect() {}
+          addImage() {}
+          save(name) { window.__savedPdfFiles.push(name); }
+        }
+      };
+    });
+
+    // 1. Export via Vector (Browser Print)
+    await page.locator('#standalone-controls-toggle').hover();
+    await page.locator('#standalone-export-toggle').click();
+    await page.locator('#standalone-export-pdf').click();
+    await expect(page.locator('#pdf-export-modal')).toHaveClass(/is-visible/);
+    await page.locator('#pdf-export-card-vector').click();
+    await page.locator('#pdf-export-confirm').click();
+
+    await expect.poll(() => page.evaluate(() => window.__vectorPdfImages)).toEqual([
+      {
+        src: imageUrl,
+        resolvedSrc: imageUrl,
+        complete: true,
+        naturalWidth: 1
+      }
+    ]);
+
+    // 2. Export via Raster (Precision PDF)
+    await page.locator('#standalone-controls-toggle').hover();
+    await page.locator('#standalone-export-toggle').click();
+    await page.locator('#standalone-export-pdf').click();
+    await expect(page.locator('#pdf-export-modal')).toHaveClass(/is-visible/);
+    await page.locator('#pdf-export-card-raster').click();
+    await page.locator('#pdf-export-confirm').click();
+
+    await expect.poll(() => page.evaluate(() => window.__savedPdfFiles.length)).toBe(1);
+    const rasterImages = await page.evaluate(() => window.__rasterPdfImages);
+    expect(rasterImages).toHaveLength(1);
+    expect(rasterImages[0].complete).toBe(true);
+    expect(rasterImages[0].naturalWidth).toBe(1);
+    expect(rasterImages[0].src).toMatch(/^data:image\/png;base64,/);
+    expect(rasterImages[0].originalSrc).toBe(imageUrl);
+  });
 });
 

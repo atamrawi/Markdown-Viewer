@@ -3466,8 +3466,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       path: "M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM175 175c9.4-9.4 24.6-9.4 33.9 0l47 47 47-47c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-47 47 47 47c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-47-47-47 47c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l47-47-47-47c-9.4-9.4-9.4-24.6 0-33.9z",
     },
     discussion: {
-      label: "Discussion",
-      emoji: "💬 ",
+      label: " Discussion",
+      emoji: "💬",
     },
     activity: {
       label: "Activity",
@@ -26511,6 +26511,9 @@ ${selector} .arrowheadPath {
       tempContainer.innerHTML = sanitizedHtml;
       applyReferencePreviewLinks(tempContainer, referenceData.definitions);
       enhanceGitHubAlerts(tempContainer);
+      processEmojis(tempContainer);
+      enhancePreviewImages(tempContainer);
+      enhanceRelativeLinks(tempContainer);
       tempContainer.querySelectorAll('.diagram-status, .diagram-toolbar, .mermaid-toolbar, .preview-image-toolbar, .abc-toolbar').forEach(function(el) {
         el.remove();
       });
@@ -27942,13 +27945,54 @@ ${selector} .arrowheadPath {
   function waitForAllImages(container) {
     const imgs = Array.from(container.querySelectorAll('img'));
     const promises = imgs.map(img => {
-      if (img.complete) return Promise.resolve();
-      return new Promise(resolve => {
-        img.addEventListener('load', resolve, { once: true });
-        img.addEventListener('error', resolve, { once: true });
+      if (img.getAttribute('loading') === 'lazy') {
+        img.removeAttribute('loading');
+      }
+      img.loading = 'eager';
+      const loadedPromise = img.complete
+        ? Promise.resolve()
+        : new Promise(resolve => {
+            img.addEventListener('load', resolve, { once: true });
+            img.addEventListener('error', resolve, { once: true });
+          });
+      return loadedPromise.then(() => {
+        if (typeof img.decode === 'function') {
+          return img.decode().catch(() => {});
+        }
       });
     });
     return Promise.all(promises);
+  }
+
+  async function inlineExternalImagesForCanvas(container) {
+    if (!container) return;
+    const imgs = Array.from(container.querySelectorAll('img'));
+    await Promise.all(imgs.map(async img => {
+      const rawSrc = (img.getAttribute('src') || '').trim();
+      if (!rawSrc || /^(?:data:|blob:)/i.test(rawSrc)) return;
+      let resolvedUrl;
+      try {
+        resolvedUrl = new URL(rawSrc, window.location.href);
+      } catch (_) {
+        return;
+      }
+      if ((resolvedUrl.protocol !== 'http:' && resolvedUrl.protocol !== 'https:') ||
+          resolvedUrl.origin === window.location.origin) {
+        return;
+      }
+      try {
+        const res = await fetch(resolvedUrl.href, { method: 'GET', mode: 'cors', cache: 'no-cache' });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        if (!blob || !blob.size) return;
+        if (blob.type && !blob.type.toLowerCase().startsWith('image/')) return;
+        const dataUrl = await readFileAsDataUrl(blob);
+        if (dataUrl && dataUrl.startsWith('data:')) {
+          img.dataset.exportOriginalSrc = resolvedUrl.href;
+          img.src = dataUrl;
+        }
+      } catch (_) {}
+    }));
   }
 
   function getExportTheme(theme) {
@@ -28022,6 +28066,11 @@ ${selector} .arrowheadPath {
     root.querySelectorAll('mjx-assistive-mml, script[type*="math"], script[type*="tex"]').forEach(element => element.remove());
     removeExportOnlyControls(root);
 
+    const exportRenderMode = root.getAttribute('data-export-render-mode');
+    if (exportRenderMode === 'pdf' || exportRenderMode === 'image') {
+      await waitForExportWork(state, inlineExternalImagesForCanvas(root));
+    }
+
     await waitForExportWork(state, Promise.all([
       waitForAllImages(root),
       document.fonts ? document.fonts.ready : Promise.resolve()
@@ -28052,6 +28101,9 @@ ${selector} .arrowheadPath {
 
     applyReferencePreviewLinks(root, referenceData.definitions);
     enhanceGitHubAlerts(root);
+    processEmojis(root);
+    enhancePreviewImages(root);
+    enhanceRelativeLinks(root);
 
     try {
       await renderExportRichContent(root, markdown, theme, state);
