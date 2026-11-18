@@ -85,6 +85,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   let remoteUrlLoaded = false;
+  let remoteUrlLoadFailed = false;
   window.alert = function(message) { showAppToast(message); };
   const PRIVATE_MODE_KEY = 'markdownViewerPrivateMode';
   const APP_VERSION = '3.10.4';
@@ -4554,7 +4555,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
   const sampleMarkdown = templateText || '# Welcome to Markdown Viewer\n\nStart typing, pasting, or importing Markdown to use the live preview...';
 
-  if (!markdownEditor.value) {
+  if (!markdownEditor.value && !hasRemoteUrlParameter()) {
     markdownEditor.value = sampleMarkdown;
   }
 
@@ -15760,6 +15761,11 @@ ${selector} .arrowheadPath {
     window.renderMarkdown = renderMarkdown;
     stopActiveAbcPlayback();
     options = options || {};
+    const isStandaloneActive = document.body.classList.contains('standalone-file-mode') ||
+      document.documentElement.dataset.standaloneMode === 'true';
+    if (remoteUrlLoadFailed && isStandaloneActive) {
+      return;
+    }
     const rawVal = markdownEditor.value;
     const force = options.force === true;
     // Stats must reflect the current editor content on every render call, even when
@@ -31319,7 +31325,7 @@ ${selector} .arrowheadPath {
   }
 
   async function loadFromUrlParameters() {
-    if (remoteUrlLoaded) return true;
+    if (remoteUrlLoaded || remoteUrlLoadFailed) return true;
     const searchParams = new URLSearchParams(window.location.search);
     const hash = window.location.hash || '';
     let hashParams = new URLSearchParams();
@@ -31340,6 +31346,7 @@ ${selector} .arrowheadPath {
 
     document.body.classList.add('standalone-file-mode');
     document.documentElement.dataset.standaloneMode = 'true';
+    markdownEditor.value = '';
     showPreviewSkeleton();
 
     try {
@@ -31366,6 +31373,7 @@ ${selector} .arrowheadPath {
         updateDocumentSidebarVisibility();
       }
 
+      remoteUrlLoadFailed = false;
       remoteUrlLoaded = true;
       syncStandaloneSlideControlsVisibility();
       if (isReadOnly && isStandaloneSlideUrlRequested()) {
@@ -31378,6 +31386,10 @@ ${selector} .arrowheadPath {
       return true;
     } catch (error) {
       console.error('Failed to load remote Markdown file:', error);
+      remoteUrlLoadFailed = true;
+      markdownEditor.value = '';
+      clearPendingPreviewWork();
+      previewRenderGeneration++;
       if (markdownPreview) {
         markdownPreview.removeAttribute('aria-busy');
         markdownPreview.dataset.renderState = 'error';

@@ -192,11 +192,14 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await expect(page.locator('.editor-pane')).toBeHidden();
     await expect(page.locator('#tab-bar')).toBeHidden();
 
-    // Clean error card is rendered in preview
+    // Clean error card is rendered in preview and is not overwritten by delayed default-markdown renders
     const errorContainer = page.locator('.remote-url-error-container');
+    await expect(errorContainer).toBeVisible();
+    await page.waitForTimeout(150);
     await expect(errorContainer).toBeVisible();
     await expect(errorContainer.locator('.remote-url-error-title')).toHaveText('Unable to Load Document');
     await expect(errorContainer.locator('.remote-url-error-btn-primary')).toHaveText('Reload Page');
+    await expect(page.locator('#markdown-preview')).not.toContainText('Welcome to Markdown Viewer');
 
     // Right-click on the error view leaves native browser context menu intact
     const errorContextMenuPrevented = await page.locator('#markdown-preview').evaluate(el => {
