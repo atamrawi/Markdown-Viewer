@@ -31863,6 +31863,7 @@ ${selector} .arrowheadPath {
     ];
     actions
       .filter(action => !(engine === 'abc' && action.title === 'Open diagram viewer'))
+      .filter(action => !(engine === 'mermaid' && (action.title === 'Download PNG' || action.title === 'Download SVG')))
       .forEach(action => toolbar.appendChild(createDiagramToolbarButton(action)));
     container.appendChild(toolbar);
   }

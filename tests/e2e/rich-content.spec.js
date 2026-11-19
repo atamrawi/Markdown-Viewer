@@ -18,6 +18,13 @@ test('renders Mermaid diagrams', async ({ page }) => {
 
   await expect(page.locator('.mermaid-container svg').first()).toBeVisible();
   await expect(page.locator('.mermaid-container').first()).toContainText(/Mermaid test diagram|Write Markdown/);
+
+  const toolbar = page.locator('.mermaid-container .diagram-toolbar').first();
+  await expect(toolbar).toBeAttached();
+  await expect(toolbar.locator('button[title="Open diagram viewer"]')).toBeAttached();
+  await expect(toolbar.locator('button[title="Copy image to clipboard"]')).toBeAttached();
+  await expect(toolbar.locator('button[title="Download PNG"]')).toHaveCount(0);
+  await expect(toolbar.locator('button[title="Download SVG"]')).toHaveCount(0);
 });
 
 test('renders Mermaid diagrams in the secondary document split preview', async ({ page }) => {
