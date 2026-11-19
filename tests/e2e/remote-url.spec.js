@@ -335,6 +335,7 @@ test.describe('Remote URL and Parameter Viewer', () => {
 
     // Enter Slide Mode
     await slideToggle.click();
+    await expect(slideToggle).not.toBeFocused();
     await expect(page.locator('html')).toHaveAttribute('data-slide-mode', 'true');
     await expect(slideNav).toBeVisible();
     await expect(counter).toHaveText('1 / 4');
@@ -380,6 +381,21 @@ test.describe('Remote URL and Parameter Viewer', () => {
     await prevBtn.click();
     await expect(counter).toHaveText('3 / 4');
     await expect(page).toHaveURL(/slide=3/);
+
+    // Enter advances to next slide, Backspace returns to previous slide
+    await page.keyboard.press('Enter');
+    await expect(counter).toHaveText('4 / 4');
+    await expect(page).toHaveURL(/slide=4/);
+
+    await page.keyboard.press('Backspace');
+    await expect(counter).toHaveText('3 / 4');
+    await expect(page).toHaveURL(/slide=3/);
+
+    // Focused interactive controls retain normal Enter activation
+    await prevBtn.focus();
+    await page.keyboard.press('Enter');
+    await expect(counter).toHaveText('2 / 4');
+    await expect(page).toHaveURL(/slide=2/);
 
     // Exit Slide Mode via Escape and verify full document is restored
     await page.keyboard.press('Escape');

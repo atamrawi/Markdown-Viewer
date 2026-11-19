@@ -15712,6 +15712,9 @@ ${selector} .arrowheadPath {
     renderActiveStandaloneSlide();
     revealStandaloneSlideNav();
     updateStandaloneSlideUrl(standaloneSlideIndex + 1);
+    if (standaloneSlideToggleBtn && document.activeElement === standaloneSlideToggleBtn) {
+      standaloneSlideToggleBtn.blur();
+    }
     return true;
   }
 
@@ -26108,14 +26111,16 @@ ${selector} .arrowheadPath {
   }
 
   if (standaloneSlidePrevBtn) {
-    standaloneSlidePrevBtn.addEventListener('click', function() {
+    standaloneSlidePrevBtn.addEventListener('click', function(event) {
       goToStandaloneSlide(standaloneSlideIndex - 1);
+      if (event.detail > 0) this.blur();
     });
   }
 
   if (standaloneSlideNextBtn) {
-    standaloneSlideNextBtn.addEventListener('click', function() {
+    standaloneSlideNextBtn.addEventListener('click', function(event) {
       goToStandaloneSlide(standaloneSlideIndex + 1);
+      if (event.detail > 0) this.blur();
     });
   }
 
@@ -26161,10 +26166,11 @@ ${selector} .arrowheadPath {
     if (zoomModal && zoomModal.classList.contains('active')) return;
     const target = event.target;
     if (target && target.closest && target.closest('input, textarea, select, [contenteditable="true"]')) return;
-    if (event.key === 'ArrowRight' || event.key === 'PageDown') {
+    const isInteractiveTarget = Boolean(target && target.closest && target.closest('button, a, summary, [role="button"], [role="menuitem"]'));
+    if (event.key === 'ArrowRight' || event.key === 'PageDown' || (event.key === 'Enter' && !isInteractiveTarget)) {
       event.preventDefault();
       goToStandaloneSlide(standaloneSlideIndex + 1);
-    } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+    } else if (event.key === 'ArrowLeft' || event.key === 'PageUp' || event.key === 'Backspace') {
       event.preventDefault();
       goToStandaloneSlide(standaloneSlideIndex - 1);
     } else if (event.key === 'Home') {
